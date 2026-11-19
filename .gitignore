@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.vercel/
+.netlify/
+test-results/
+reports/
+tests/fixtures/*.y4m
+tests/fixtures/manifest.json

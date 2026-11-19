@@ -1,0 +1,13 @@
+{
+  "density": 142,
+  "core": 1.45,
+  "glow": 0.52,
+  "trail": 1.95,
+  "trailOpacity": 0.45,
+  "speed": 0.21,
+  "variation": 0.59,
+  "drift": 7,
+  "strands": 17,
+  "lengthVariation": 1,
+  "buildup": 8.5
+}

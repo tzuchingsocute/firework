@@ -1,0 +1,30 @@
+{
+  "name": "firework-live-room",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test:stage1": "node tests/run-stage1.js",
+    "test:unit": "vitest run tests/projection.test.js",
+    "test:head-space": "node tests/run-head-space.js",
+    "test:stage1.5": "node tests/run-surface.js",
+    "test:framing": "vitest run tests/framing.test.js",
+    "test:stage2": "node tests/run-stage2.js",
+    "test:adaptive-ar": "vitest run tests/adaptive-ar.test.js tests/visual-rain.test.js tests/surface.test.js tests/projection.test.js tests/framing.test.js tests/expression.test.js tests/hand.test.js",
+    "test:hand-interaction": "vitest run tests/hand.test.js tests/visual-rain.test.js tests/surface.test.js tests/projection.test.js tests/framing.test.js tests/expression.test.js"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "0.10.21"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.65.1",
+    "esbuild": "^0.28.2",
+    "vite": "^7.0.0",
+    "vitest": "^5.1.0"
+  }
+}

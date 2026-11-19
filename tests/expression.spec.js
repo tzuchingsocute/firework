@@ -1,0 +1,23 @@
+import { test, expect } from '@playwright/test'
+test.use({ launchOptions: { args: ['--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream',
+  ...(process.env.STAGE2_VIDEO ? ['--use-file-for-fake-video-capture='+process.env.STAGE2_VIDEO] : [])] } })
+test('real model produces blendshapes in the shared camera loop', async ({page},info) => {
+  test.skip(!process.env.STAGE2_VIDEO, 'Missing fixture')
+  await page.goto('/')
+  await page.locator('#controls-toggle').click()
+  await page.getByRole('button',{name:'开启摄像头'}).click()
+  await page.locator('#expression-panel > summary').click()
+  await expect(page.locator('#expression-panel output')).not.toContainText('NO_FACE',{timeout:90000})
+  const value=await page.locator('#expression-panel output').textContent()
+  await info.attach('expression-real-inference',{body:value,contentType:'text/plain'})
+  expect(value).toMatch(/Smile \d\.\d+/)
+  expect(value).toMatch(/Intensity \d\.\d+/)
+  expect(value).toMatch(/Cheek \d\.\d+/)
+  await page.getByText('Explain Recognition', { exact: true }).click()
+  await expect(page.locator('[data-explain]')).toContainText('嘴角贡献')
+  await expect(page.locator('[data-calibrate="LAUGH"]')).toContainText('可闭嘴')
+  await info.attach('expression-debug', { body: await page.screenshot({fullPage:true}), contentType:'image/png' })
+  await expect(page.locator('#surface-enabled')).not.toBeChecked()
+  await page.getByRole('button',{name:'关闭摄像头'}).click()
+  await expect(page.locator('#expression-panel output')).toContainText('NO_FACE')
+})
