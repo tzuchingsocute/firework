@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Firework 直播间</title>
+  <script type="module" crossorigin src="/firework/assets/index-XWOy9OB_.js"></script>
+  <link rel="stylesheet" crossorigin href="/firework/assets/index-rtXyV6w-.css">
+</head>
+<body>
+  <div class="workbench">
+  <main class="live-room" aria-label="直播间预览">
+    <div class="live-stage" aria-label="直播画面">
+      <video id="camera" data-fit="cover" autoplay muted playsinline aria-label="摄像头预览"></video>
+      
+      <canvas id="landmarks" aria-hidden="true"></canvas>
+      <canvas id="surface-canvas" aria-hidden="true" hidden></canvas>
+      <canvas id="collision-preview" aria-hidden="true" hidden></canvas>
+    </div>
+    <canvas id="visual-rain-canvas" width="414" height="896" aria-hidden="true" hidden></canvas>
+    <canvas id="surface-outside-stage" aria-hidden="true"></canvas>
+    <img class="live-header" src="/firework/assets/live-header-lDz7dpHD.png" width="828" height="220" alt="直播间顶部信息">
+    <img class="live-footer" src="/firework/assets/live-footer-USO1Lt3n.png" width="828" height="720" alt="直播间底部工具栏">
+  </main>
+  <aside class="controls" aria-labelledby="console-heading">
+    <header class="console-header">
+      <h1 id="console-heading">Developer Console</h1>
+      <button id="controls-toggle" type="button" aria-controls="controls-content" aria-expanded="false" aria-label="展开控制面板">Debug ⌄</button>
+    </header>
+    <div id="controls-content" hidden>
+      <details open>
+        <summary>摄像头控制</summary>
+        <div class="console-group">
+          <div id="framing-guide" hidden><output id="framing-message" aria-live="polite"></output></div>
+          <p id="message" role="status" hidden></p>
+          <label class="console-field">摄像头设备
+            <select id="camera-device"><option value="">默认摄像头</option></select>
+          </label>
+          <div class="control-row">
+            <button id="camera-toggle" type="button" disabled>开启摄像头</button>
+            <button id="reframe-camera" type="button" disabled>重新取景</button>
+          </div>
+          <label class="console-field">画面比例
+            <select id="broadcast-format">
+              <option value="portrait">▯ 竖屏</option>
+              <option value="landscape">▭ 横屏模式</option>
+            </select>
+          </label>
+        </div>
+      </details>
+      <details open>
+        <summary>AR 交互测试</summary>
+        <div class="console-group">
+          <label><input id="show-landmarks" type="checkbox"> 显示关键点</label>
+          <label><input id="surface-enabled" type="checkbox"> 阶段 1.5 人体水珠测试</label>
+          <div class="control-row">
+            <button id="surface-spawn" type="button" disabled>释放测试水珠</button>
+            <label><input id="surface-debug" type="checkbox" checked> 表面调试</label>
+          </div>
+          <label><input id="head-collision-debug" type="checkbox"> Head Collision Debug</label>
+          <output id="head-collision-stats" hidden></output>
+          <details>
+            <summary>Crown Collision Test</summary>
+            <div class="control-row">
+              <label>测试场景 <select id="crown-test-scenario">
+                <option value="normal">正常距离静止</option>
+                <option value="close">近距离静止</option>
+                <option value="close-motion">近距离左右移动</option>
+                <option value="tilt">倾斜头部</option>
+                <option value="clipped">头顶裁切</option>
+              </select></label>
+              <button id="crown-test-start" type="button">开始 20 秒测试</button>
+              <button id="crown-test-review" type="button" disabled>标记当前画面</button>
+              <button id="crown-test-export" type="button" disabled>导出日志与异常帧</button>
+            </div>
+            <output id="crown-test-status" aria-live="polite">记录保存在本机</output>
+          </details>
+          <label><input id="face-mask-debug" type="checkbox"> 面罩调试</label>
+          <label><input id="face-alpha-view" type="checkbox"> 仅看特效 Alpha</label>
+          <output id="face-mask-stats"></output>
+          <output id="surface-status" role="status">等待开启人体测试</output>
+        </div>
+      </details>
+      <details id="camera-inspector">
+        <summary>Camera Debug</summary>
+        <div class="console-group"><pre id="camera-debug"></pre></div>
+      </details>
+      <details open>
+        <summary>追踪与碰撞诊断</summary>
+        <div class="console-group">
+          <div class="metrics">
+            <span>追踪 <strong id="fps">0 FPS</strong></span>
+            <span>人脸 <strong id="face">未检测到</strong></span>
+            <span id="tracking" role="status">待启动</span>
+          </div>
+          <label><input id="debug" type="checkbox"> Debug</label>
+          <output id="coordinates" hidden></output>
+          <div id="alignment-tools" hidden>
+            <button id="alignment-freeze" type="button" disabled>暂停并标注</button>
+            <div id="collision-controls" hidden>
+              <label><input id="collision-enabled" type="checkbox"> 碰撞预览</label>
+              <label><input id="collision-outline" type="checkbox" checked> 显示边界</label>
+              <div class="control-row">
+                <button id="collision-seed" type="button" disabled>重置周围粒子</button>
+                <button id="collision-fire" type="button" disabled>发射测试火星</button>
+              </div>
+              <output id="collision-feedback" role="status"></output>
+              <small>黄色虚线 · 碰撞边界　蓝色圆点 · 测试粒子</small>
+              <output id="head-space" aria-label="头部空间数据"></output>
+            </div>
+          </div>
+        </div>
+      </details>
+      <details id="visual-rain">
+        <summary>发光雨幕 · 交互测试</summary>
+        <div class="console-group">
+          <div class="control-row">
+            <button type="button" data-play>播放</button>
+            <button type="button" data-pause>暂停</button>
+            <button type="button" data-restart>重新播放</button>
+            <button type="button" data-stop>停止</button>
+          </div>
+          <label>雨幕触发 <select data-effect-trigger>
+            <option value="manual">手动</option>
+            <option value="expression">表情联动</option>
+          </select></label>
+          <small data-effect-status></small>
+          <label>雨幕模式 <select data-rain-mode>
+            <option value="visual">仅视觉</option>
+            <option value="interactive">AR 互动</option>
+          </select></label>
+          <details>
+            <summary>互动调试</summary>
+            <div class="control-row">
+              <label><input type="checkbox" data-rain-debug="bounds"> 显示视频边界</label>
+              <label><input type="checkbox" data-rain-debug="surface"> 碰撞表面</label>
+              <label><input type="checkbox" data-rain-debug="impact"> 碰撞点</label>
+              <label><input type="checkbox" data-rain-debug="trajectory"> 粒子轨迹</label>
+              <label><input type="checkbox" data-rain-debug="face"> 面部保护遮罩</label>
+            </div>
+          </details>
+          <output></output>
+          <details id="rain-visibility">
+            <summary>雨幕遮挡调试</summary>
+            <label>显示来源 <select>
+              <option value="all">全部雨滴</option>
+              <option value="falling">仅下落雨滴</option>
+              <option value="impact">仅头部飞溅</option>
+              <option value="attached">仅头部附着、滑落与脱离</option>
+            </select></label>
+            <label><input type="checkbox" data-person-mask> 人体分割遮挡</label>
+            <label><input type="checkbox" data-visibility-face> 面部保护遮罩</label>
+            <output style="white-space:pre-wrap"></output>
+          </details>
+          <details id="adaptive-interaction">
+            <summary>自适应互动调试</summary>
+            <div class="control-row">
+              <label><input type="checkbox" data-adaptive-debug="crown"> 完整头顶</label>
+              <label><input type="checkbox" data-adaptive-debug="hair"> 可见头发边界</label>
+              <label><input type="checkbox" data-adaptive-debug="mask"> 面部保护遮罩</label>
+              <label><input type="checkbox" data-adaptive-debug="face"> 脸侧分流边界</label>
+              <label><input type="checkbox" data-adaptive-debug="weights"> 显示互动权重</label>
+              <label><input type="checkbox" data-adaptive-debug="events"> 命中与偏转点</label>
+            </div>
+            <output style="display:block;white-space:pre-line">等待 AR 互动</output>
+          </details>
+          <details id="hand-interaction">
+            <summary>手部互动调试</summary>
+            <label><input type="checkbox" data-hand-enabled checked> 手部互动 <span data-hand-state>已启用</span></label>
+            <div class="control-row">
+              <label><input type="checkbox" data-hand-debug="landmarks"> 手部关键点</label>
+              <label><input type="checkbox" data-hand-debug="palm"> 手掌碰撞体</label>
+              <label><input type="checkbox" data-hand-debug="finger"> 手指碰撞体</label>
+              <label><input type="checkbox" data-hand-debug="velocity"> 手部速度</label>
+              <label><input type="checkbox" data-hand-debug="impacts"> 手部接触点</label>
+            </div>
+            <output style="display:block;white-space:pre-line">手部互动已关闭</output>
+            <label><input type="checkbox" data-hand-debug="occlusion"> 手掌碰撞与遮挡诊断</label>
+            <pre data-occlusion-status hidden style="white-space:pre-wrap;overflow-wrap:anywhere"></pre>
+            <pre data-impact-log aria-label="雨滴碰撞日志"></pre>
+            <button type="button" data-export-impacts>导出碰撞日志</button>
+          </details>
+          <div data-video-bounds hidden></div>
+          <small data-effective-speed></small>
+          <small data-rain-response></small>
+          <small data-rain-preset></small>
+          <div class="control-row">
+            <button type="button" data-export>导出参数</button>
+            <button type="button" data-stop-old>关闭测试水珠</button>
+          </div>
+        </div>
+      </details>
+      <details id="expression-panel">
+        <summary>Expression Debug · 表情识别</summary>
+        <div class="console-group">
+          <output style="white-space:pre-wrap;overflow-wrap:anywhere">NO_FACE</output>
+          <canvas width="290" height="80" style="width:100%" aria-label="最近六秒表情系数曲线"></canvas>
+          <small>绿 Mouth · 橙 Cheek · 蓝 Eye · 黄 Jaw · 紫 Intensity</small>
+          <details><summary>Explain Recognition</summary><p data-explain></p></details>
+          <details><summary>表情参数（待验证）</summary>
+            <textarea data-expression-config rows="12" aria-label="表情权重与阈值 JSON" style="width:100%;box-sizing:border-box"></textarea>
+            <button data-apply-config>应用参数</button>
+          </details>
+          <strong>个人表情校准</strong>
+          <label>微笑灵敏度 <select data-mild-sensitivity>
+            <option value="sensitive">灵敏</option>
+            <option value="balanced" selected>平衡</option>
+            <option value="strict">严格</option>
+          </select></label>
+          <label>强笑灵敏度 <select data-smile-sensitivity>
+            <option value="sensitive">灵敏</option>
+            <option value="balanced" selected>平衡</option>
+            <option value="strict">严格</option>
+          </select></label>
+          <progress data-calibration-progress max="2000" value="0" aria-label="校准采集进度"></progress>
+          <small data-calibration-detail>采集时会显示强度与有效帧数。</small>
+          <div class="control-row">
+            <button data-calibrate="NEUTRAL">1 自然表情</button>
+            <button data-calibrate="SMILE">2 轻微微笑</button>
+            <button data-calibrate="LAUGH">3 灿烂笑容（可闭嘴）</button>
+            <button data-reset>重新校准 / 恢复默认</button>
+          </div>
+          <span role="status">开启摄像头后，每种表情保持约 2 秒。</span>
+        </div>
+      </details>
+    </div>
+  </aside>
+  </div>
+  <dialog id="alignment-dialog" aria-labelledby="alignment-title">
+    <header class="alignment-row">
+      <h2 id="alignment-title">真人对齐标注</h2>
+      <button id="alignment-close" type="button">返回实时画面</button>
+    </header>
+    <div class="alignment-row">
+      <label>测试场景 <select id="alignment-scene"></select></label>
+      <label>局部放大 <input id="alignment-zoom" type="range" min="1" max="4" step=".25" value="1"></label>
+      <label><input id="alignment-pan" type="checkbox"> 滑动查看</label>
+      <label><input id="alignment-prediction" type="checkbox"> 显示预测</label>
+      <label><input id="alignment-indices" type="checkbox"> 显示编号</label>
+    </div>
+    <p>按人物自身左右标注。镜像画面中，人物左侧在屏幕左侧。点击放置标注，拖动可调整。建议先完成标注，再打开预测对比。</p>
+    <div id="alignment-labels" class="alignment-row"></div>
+    <div id="alignment-scroll"><canvas id="alignment-canvas" aria-label="冻结画面与参考点"></canvas></div>
+    <p id="alignment-cursor"></p>
+    <div class="alignment-row">
+      <label><input id="alignment-real" type="checkbox"> 确认此帧来自真实摄像头，参考点为人工标注</label>
+      <button id="alignment-save" type="button" disabled>保存场景</button>
+      <button id="alignment-export" type="button" disabled>导出 JSON</button>
+    </div>
+    <output id="alignment-result" role="status"></output>
+    <ul id="alignment-progress"></ul>
+  </dialog>
+</body>
+</html>
