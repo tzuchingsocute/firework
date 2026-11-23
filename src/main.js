@@ -248,6 +248,10 @@ controlsToggle.addEventListener('click', () => {
 const firework = mountFirework(expressions)
 mountVisualRain(surface, expressions, firework)
 if (import.meta.env.MODE === 'pages') {
+  const rainMode = document.querySelector('[data-rain-mode]')
+  rainMode.value = 'interactive'
+  rainMode.dispatchEvent(new Event('change'))
+
   const effectTrigger = document.querySelector('[data-effect-trigger]')
   effectTrigger.value = 'expression'
   effectTrigger.dispatchEvent(new Event('change'))
