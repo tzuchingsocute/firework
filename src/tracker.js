@@ -1,5 +1,5 @@
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
-import { wasmUrl, faceModelUrl } from './vision-assets.js'
+import { wasmUrl, faceModelUrl, cdnWasmUrl, cdnFaceModelUrl } from './vision-assets.js'
 
 export const contours = [
   FaceLandmarker.FACE_LANDMARKS_FACE_OVAL,
@@ -10,10 +10,10 @@ export const contours = [
   FaceLandmarker.FACE_LANDMARKS_LIPS,
 ].flat()
 
-export async function createTracker() {
-  const files = await FilesetResolver.forVisionTasks(wasmUrl)
+async function loadTracker(runtimeUrl, modelUrl) {
+  const files = await FilesetResolver.forVisionTasks(runtimeUrl)
   const options = delegate => ({
-    baseOptions: { modelAssetPath: faceModelUrl, delegate },
+    baseOptions: { modelAssetPath: modelUrl, delegate },
     runningMode: 'VIDEO',
     numFaces: 1,
     outputFaceBlendshapes: true,
@@ -23,5 +23,15 @@ export async function createTracker() {
     return await FaceLandmarker.createFromOptions(files, options('GPU'))
   } catch {
     return FaceLandmarker.createFromOptions(files, options('CPU'))
+  }
+}
+
+
+export async function createTracker() {
+  try {
+    return await loadTracker(cdnWasmUrl, cdnFaceModelUrl)
+  } catch (error) {
+    console.warn('国内 CDN 加载失败，尝试站点资源', error)
+    return loadTracker(wasmUrl, faceModelUrl)
   }
 }
