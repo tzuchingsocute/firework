@@ -1,8 +1,5 @@
 import { FaceLandmarker, FilesetResolver } from '@mediapipe/tasks-vision'
-import { dependencies } from '../package.json'
-
-const wasmUrl = `https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${dependencies['@mediapipe/tasks-vision']}/wasm`
-const modelUrl = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task'
+import { wasmUrl, faceModelUrl } from './vision-assets.js'
 
 export const contours = [
   FaceLandmarker.FACE_LANDMARKS_FACE_OVAL,
@@ -16,7 +13,7 @@ export const contours = [
 export async function createTracker() {
   const files = await FilesetResolver.forVisionTasks(wasmUrl)
   const options = delegate => ({
-    baseOptions: { modelAssetPath: modelUrl, delegate },
+    baseOptions: { modelAssetPath: faceModelUrl, delegate },
     runningMode: 'VIDEO',
     numFaces: 1,
     outputFaceBlendshapes: true,

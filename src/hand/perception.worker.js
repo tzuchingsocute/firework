@@ -1,9 +1,9 @@
 import { FilesetResolver, HandLandmarker } from '@mediapipe/tasks-vision'
-import { dependencies } from '../../package.json'
+import { wasmUrl } from '../vision-assets.js'
 
 let model
 async function load() {
-  const files = await FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${dependencies['@mediapipe/tasks-vision']}/wasm`)
+  const files = await FilesetResolver.forVisionTasks(wasmUrl)
   return HandLandmarker.createFromOptions(files, {
     baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task', delegate: 'CPU' },
     runningMode: 'VIDEO', numHands: 2,

@@ -1,9 +1,9 @@
 import { FilesetResolver, PoseLandmarker, ImageSegmenter } from '@mediapipe/tasks-vision'
-import { dependencies } from '../../package.json'
+import { wasmUrl } from '../vision-assets.js'
 
 let models
 async function load() {
-  const files = await FilesetResolver.forVisionTasks(`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${dependencies['@mediapipe/tasks-vision']}/wasm`)
+  const files = await FilesetResolver.forVisionTasks(wasmUrl)
   const pose = await PoseLandmarker.createFromOptions(files, {
     baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task', delegate: 'CPU' },
     runningMode: 'VIDEO', numPoses: 1,
