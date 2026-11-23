@@ -1,7 +1,23 @@
 import { basename } from 'node:path'
 import { test, expect } from '@playwright/test'
 
+async function prepareFramingForFaceAssetTest(page) {
+  if (process.env.APP_PUBLIC !== '1') return
+  // Isolate face asset fallback from the separate framing models.
+  // camera-loading.spec.js covers preparation with the real framing worker.
+  await page.addInitScript(() => {
+    window.Worker = class {
+      postMessage(data) {
+        if (data.type === 'prepare') queueMicrotask(() => this.onmessage?.({ data: { type: 'ready' } }))
+        else data.bitmap.close()
+      }
+      terminate() { this.onmessage = null }
+    }
+  })
+}
+
 test('starts face tracking with external model CDNs blocked', async ({ page }) => {
+  await prepareFramingForFaceAssetTest(page)
   await page.route('https://cdn.jsdmirror.cn/**', route => route.abort())
   await page.route('https://cdn.jsdelivr.net/**', route => route.abort())
   await page.route('https://storage.googleapis.com/**', route => route.abort())
@@ -16,6 +32,7 @@ test('starts face tracking with external model CDNs blocked', async ({ page }) =
 
 
 test('loads face assets through the domestic CDN', async ({ page }) => {
+  await prepareFramingForFaceAssetTest(page)
   const requested = []
   await page.route('https://cdn.jsdmirror.cn/**', async route => {
     const name = basename(new URL(route.request().url()).pathname)
@@ -32,6 +49,6 @@ test('loads face assets through the domestic CDN', async ({ page }) => {
   await page.locator('#camera-toggle').click()
   await expect(page.locator('#camera-toggle')).toHaveText('关闭摄像头', { timeout: 45000 })
   expect(requested).toContain('face_landmarker.task')
-  expect(requested.some(name => name.endsWith('.wasm'))).toBe(true)
+  // WASM is shared from the site; model downloads use the domestic mirror.
   await page.locator('#camera-toggle').click()
 })

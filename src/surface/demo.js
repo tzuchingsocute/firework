@@ -48,6 +48,9 @@ export function createSurfaceDemo(video, framing) {
   let protection
   let measurement
   let worker
+  let preparation
+  let resolvePreparation
+  let rejectPreparation
   let generation = 0
   let busy = false
   let latest
@@ -90,6 +93,8 @@ export function createSurfaceDemo(video, framing) {
     admitted = false
     failed = false
     generation++
+    rejectPreparation?.(new Error('人体模型加载已取消'))
+    preparation = resolvePreparation = rejectPreparation = undefined
     worker?.terminate()
     worker = undefined
     busy = false
@@ -99,8 +104,8 @@ export function createSurfaceDemo(video, framing) {
     clearSurface()
     output.textContent = '人体表面测试已停止'
   }
-  function start() {
-    if (failed || worker || !video.srcObject) return
+  function start(preload = false) {
+    if (failed || worker || (!preload && !video.srcObject)) return
     output.textContent = '加载人体姿态与分割模型…'
     worker = import.meta.env.DEV
       ? new Worker('/surface-worker.js')
@@ -108,9 +113,15 @@ export function createSurfaceDemo(video, framing) {
     worker.onmessage = ({ data }) => {
       busy = false
       if (data.error) {
+        rejectPreparation?.(new Error(data.error))
         stop()
         failed = true
         output.textContent = '人体模型失败，请关闭再开启测试。' + data.error
+        return
+      }
+      if (data.type === 'ready') {
+        resolvePreparation?.()
+        resolvePreparation = rejectPreparation = undefined
         return
       }
       // Worker output is in source coordinates, so a crop pan does not stale the frame.
@@ -143,6 +154,7 @@ export function createSurfaceDemo(video, framing) {
         posePoints: data.pose?.length ?? 0, time: data.time })
     }
     worker.onerror = event => {
+      rejectPreparation?.(new Error(event.message))
       stop()
       failed = true
       output.textContent = '人体处理线程失败，请关闭再开启测试。' + event.message
@@ -437,6 +449,23 @@ export function createSurfaceDemo(video, framing) {
         valid: ready ? point => maskAt(latest, width, height, point) : () => false,
         face: !video.paused && protection && now - protection.time <= 160 ? protection : null,
       }
+    },
+    prepare() {
+      if (preparation) return preparation
+      failed = false
+      preparation = new Promise((resolve, reject) => {
+        resolvePreparation = resolve
+        rejectPreparation = reject
+      })
+      const pending = preparation
+      try {
+        start(true)
+        worker.postMessage({ type: 'prepare' })
+      } catch (error) {
+        rejectPreparation(error)
+        stop()
+      }
+      return pending
     },
     get active() { return enabled.checked },
     update(points) {

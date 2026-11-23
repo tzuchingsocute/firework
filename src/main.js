@@ -42,6 +42,39 @@ const tracking = document.querySelector('#tracking')
 const message = document.querySelector('#message')
 
 let active
+let preparedTracker
+let preparing = false
+let pageLeaving = false
+const publicView = import.meta.env.MODE === 'pages'
+
+async function prepareCamera() {
+  if (preparing || pageLeaving) return
+  preparing = true
+  toggle.disabled = true
+  toggle.textContent = '加载中...'
+  const faceReady = createTracker()
+  try {
+    const [tracker] = await Promise.all([faceReady, surface.prepare()])
+    if (pageLeaving) {
+      tracker.close()
+      surface.reset()
+      return
+    }
+    preparedTracker = tracker
+    toggle.textContent = '开启摄像头'
+  } catch (error) {
+    faceReady.then(tracker => tracker.close(), () => {})
+    surface.reset()
+    if (pageLeaving) return
+    console.error(error)
+    toggle.textContent = '重试加载'
+    message.textContent = '模型加载失败，请检查网络后点击重试。'
+    message.hidden = false
+  } finally {
+    preparing = false
+    if (!pageLeaving) toggle.disabled = false
+  }
+}
 
 function stop(session, reason = '') {
   if (active !== session) return
@@ -67,6 +100,7 @@ function stop(session, reason = '') {
   toggle.disabled = false
   toggle.textContent = '开启摄像头'
   cameraDevice.disabled = false
+  if (publicView && !pageLeaving) prepareCamera()
 }
 
 function track(session) {
@@ -146,7 +180,14 @@ toggle.addEventListener('click', async () => {
     return
   }
 
-  const session = { controller: new AbortController() }
+  if (publicView && !preparedTracker) {
+    message.hidden = true
+    prepareCamera()
+    return
+  }
+
+  const session = { controller: new AbortController(), tracker: preparedTracker }
+  preparedTracker = undefined
   active = session
   toggle.disabled = true
   cameraDevice.disabled = true
@@ -164,7 +205,7 @@ toggle.addEventListener('click', async () => {
     }
     tracking.textContent = '加载人脸模型'
     failureMessage = '人脸模型加载失败。请检查网络后重新开启摄像头。'
-    const tracker = await createTracker()
+    const tracker = session.tracker ?? await createTracker()
     if (active !== session) {
       tracker.close()
       return
@@ -184,11 +225,15 @@ showLandmarks.addEventListener('change', () => {
   if (!showLandmarks.checked) draw()
 })
 window.addEventListener('pagehide', () => {
+  pageLeaving = true
   if (active) stop(active)
+  else surface.reset()
+  preparedTracker?.close()
+  preparedTracker = undefined
 })
 
 // The first click can only occur once the camera handler is installed.
-toggle.disabled = false
+if (!publicView) toggle.disabled = false
 
 const controlsToggle = document.querySelector('#controls-toggle')
 const controlsContent = document.querySelector('#controls-content')
@@ -207,9 +252,12 @@ if (import.meta.env.MODE === 'pages') {
   effectTrigger.value = 'expression'
   effectTrigger.dispatchEvent(new Event('change'))
 
+  document.querySelector('[data-camera-bootstrap]')?.remove()
   const viewerControls = document.createElement('section')
   viewerControls.className = 'viewer-controls'
   viewerControls.setAttribute('aria-label', '摄像头控制')
   viewerControls.append(toggle, message, document.querySelector('#framing-guide'))
   document.querySelector('.workbench').append(viewerControls)
 }
+
+if (publicView) prepareCamera()

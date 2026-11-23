@@ -30,6 +30,10 @@ export default defineConfig(({ mode }) => ({
     name: 'page-presentation',
     transformIndexHtml(html) {
       return html.replace('%APP_VIEW%', mode === 'pages' ? 'public' : 'debug')
+        .replace('%CAMERA_LABEL%', mode === 'pages' ? '加载中...' : '开启摄像头')
+        .replace('%CAMERA_BOOTSTRAP%', mode === 'pages'
+          ? '<section class="viewer-controls" data-camera-bootstrap aria-label="摄像头控制"><button type="button" disabled>加载中...</button></section>'
+          : '')
     },
   }, {
     name: 'surface-worker-development',

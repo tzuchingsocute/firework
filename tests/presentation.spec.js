@@ -15,7 +15,8 @@ test('keeps camera controls accessible in the selected presentation', async ({ p
     await expect(page.locator('#controls-content')).toBeVisible()
   }
   await expect(page.locator('#camera-toggle')).toBeVisible()
-  await expect(page.locator('#camera-toggle')).toBeEnabled()
+  // Public readiness is covered by camera-loading.spec.js with controlled downloads.
+  if (!publicView) await expect(page.locator('#camera-toggle')).toBeEnabled()
 })
 
 test('centers the public view on desktop and mobile', async ({ page }) => {

@@ -1,16 +1,21 @@
 import { FilesetResolver, PoseLandmarker, ImageSegmenter } from '@mediapipe/tasks-vision'
 import { wasmUrl } from '../vision-assets.js'
+import { loadModel } from '../model-downloads.js'
 
 let models
 async function load() {
-  const files = await FilesetResolver.forVisionTasks(wasmUrl)
+  const [files, poseBuffer, segmentBuffer] = await Promise.all([
+    FilesetResolver.forVisionTasks(wasmUrl),
+    loadModel('pose_landmarker_lite.task'),
+    loadModel('selfie_multiclass_256x256.tflite'),
+  ])
   const pose = await PoseLandmarker.createFromOptions(files, {
-    baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task', delegate: 'CPU' },
+    baseOptions: { modelAssetBuffer: poseBuffer, delegate: 'CPU' },
     runningMode: 'VIDEO', numPoses: 1,
   })
   try {
     const segment = await ImageSegmenter.createFromOptions(files, {
-      baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/image_segmenter/selfie_multiclass_256x256/float32/1/selfie_multiclass_256x256.tflite', delegate: 'CPU' },
+      baseOptions: { modelAssetBuffer: segmentBuffer, delegate: 'CPU' },
       runningMode: 'VIDEO', outputCategoryMask: true, outputConfidenceMasks: false,
     })
     return { pose, segment }
@@ -22,6 +27,10 @@ self.onmessage = async ({ data }) => {
   try {
     models ??= load()
     const { pose, segment } = await models
+    if (data.type === 'prepare') {
+      self.postMessage({ type: 'ready' })
+      return
+    }
     const landmarks = pose.detectForVideo(bitmap, time).landmarks[0]
     segment.segmentForVideo(bitmap, time, result => {
       const source = result.categoryMask
@@ -32,6 +41,6 @@ self.onmessage = async ({ data }) => {
   } catch (error) {
     self.postMessage({ error: error.message })
   } finally {
-    bitmap.close()
+    bitmap?.close()
   }
 }
