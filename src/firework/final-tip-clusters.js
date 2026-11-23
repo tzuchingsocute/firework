@@ -1,3 +1,4 @@
+import{setShapedCore,SHAPED_CORE_STYLE}from'./firework-color-preview.js'
 import {projectCompatibleStar} from './star-compatibility.js'
 import {butterflyGeometry} from './butterfly-shape.js'
 import {createOrganicFlower} from './organic-flower-count.js'
@@ -32,8 +33,8 @@ function path(kind){if(paths.has(kind))return paths.get(kind);const p=new Path2D
  else{p.moveTo(-.5,0);if(kind==='spindle'){p.bezierCurveTo(-.15,-.28,.2,-.28,.5,0);p.bezierCurveTo(.15,.28,-.2,.28,-.5,0)}else if(kind==='spark'){p.lineTo(-.1,-.06);p.lineTo(.5,.015);p.lineTo(.04,.085)}else{p.lineTo(-.09,-.29);p.lineTo(.425,-.0435);p.lineTo(.04,.232)}p.closePath()}paths.set(kind,p);return p
 }
 // One cached contour per existing shape; no per-frame sprites or additional live particles.
-export function paintFinalTip(ctx,q,color){
- if(q.finalAlpha<=0)return;ctx.save();ctx.globalCompositeOperation='source-over';ctx.globalAlpha=q.finalAlpha;ctx.translate(q.x,q.y);ctx.rotate(q.angle+q.finalRotation);ctx.shadowColor=color;ctx.shadowBlur=1.2;ctx.fillStyle='#fff1e6';ctx.scale(q.finalDiameter,q.finalDiameter);ctx.fill(path(q.finalKind),'nonzero');ctx.restore()
+export function paintFinalTip(ctx,q,color,{refineShaped=false}={}){
+ if(q.finalAlpha<=0)return;ctx.save();ctx.globalCompositeOperation='source-over';ctx.globalAlpha=q.finalAlpha;ctx.translate(q.x,q.y);ctx.rotate(q.angle+q.finalRotation);ctx.shadowColor=color;ctx.shadowBlur=1.2;const refine=refineShaped&&['four','eight','butterfly'].includes(q.finalKind),previous=setShapedCore(ctx,refine);ctx.fillStyle='#fff1e6';setShapedCore(ctx,previous);const diameter=q.finalDiameter*(refine?SHAPED_CORE_STYLE.scale:1);ctx.scale(diameter,diameter);ctx.fill(path(q.finalKind),'nonzero');ctx.restore()
 }
 export function positionFinalTip(q,p,age,fade){const s=p.finalTip,a=p.angle,spread=1-Math.exp(-age*13),along=s.along+age*s.drift,side=s.side*(.65+.35*spread)+s.drift*age*.8
  q.x+=Math.cos(a)*along-Math.sin(a)*side;q.y+=Math.sin(a)*along+Math.cos(a)*side
