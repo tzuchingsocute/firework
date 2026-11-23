@@ -153,7 +153,7 @@ test('bounds rapid launches, caps DPR and does not repaint while idle', async ({
   await context.close()
 })
 
-test('preserves the downloaded HTML drawing with random colors, softer outer glow and lower saturation', async ({
+test('preserves original drawing except explicitly removed shockwave rings', async ({
   browser,
 }) => {
   const { readFile } = await import('node:fs/promises')
@@ -172,6 +172,8 @@ test('preserves the downloaded HTML drawing with random colors, softer outer glo
         'const a = Math.pow(1 - k, 2.2);',
         'const a = Math.pow(1 - k, 2.2) * 0.55;',
       )
+      .replace(/^\s*rings\.push\([^\n]*\);[ \t]*$/gm, '')
+      .replace(/    \/\/ 冲击波环[\s\S]*?(?=    \/\/ 火花:)/, '')
       .replaceAll(',100%,', ',30%,')
       .replaceAll(',95%,', ',30%,')
       .replaceAll(',90%,', ',30%,')
@@ -222,4 +224,26 @@ test('preserves the downloaded HTML drawing with random colors, softer outer glo
   }
   expect(frames[1]).toEqual(frames[0])
   await context.close()
+})
+
+
+test('all explosion types retain particles, trails and fading without shockwave arcs', async ({page}) => {
+ await page.goto('/')
+ const result=await page.evaluate(async()=>{
+  const {createSpriteFirework}=await import('/src/firework/sprite-firework.js')
+  const results=[]
+  for(const type of ['peony','chrys','ring','double','willow','strobe']){
+   const canvas=document.createElement('canvas'),ctx=canvas.getContext('2d');let arcs=0,images=0,strokes=0,erases=0
+   const arc=ctx.arc.bind(ctx),image=ctx.drawImage.bind(ctx),stroke=ctx.stroke.bind(ctx),fill=ctx.fillRect.bind(ctx)
+   ctx.arc=(...args)=>{arcs++;return arc(...args)}
+   ctx.drawImage=(...args)=>{images++;return image(...args)}
+   ctx.stroke=(...args)=>{strokes++;return stroke(...args)}
+   ctx.fillRect=(...args)=>{if(ctx.globalCompositeOperation==='destination-out'&&ctx.fillStyle==='rgba(0, 0, 0, 0.25)')erases++;return fill(...args)}
+   const effect=createSpriteFirework(canvas);effect.resize(414,896,1);effect.launch(207,250,{type,size:1,hue:270});let peak=0
+   for(let frame=0;frame<500;frame++){effect.step(frame*16.667);peak=Math.max(peak,effect.stats.sparks)}
+   results.push({type,arcs,images,strokes,erases,peak,playing:effect.playing});effect.dispose()
+  }
+  return results
+ })
+ for(const r of result){expect(r.arcs,r.type).toBe(0);expect(r.images,r.type).toBeGreaterThan(0);expect(r.strokes,r.type).toBeGreaterThan(0);expect(r.erases,r.type).toBeGreaterThan(0);expect(r.peak,r.type).toBeGreaterThan(0);expect(r.playing,r.type).toBe(false)}
 })

@@ -59,7 +59,6 @@ export function createSpriteFirework(canvas) {
   const rockets = [],
     sparks = [],
     flashes = [],
-    rings = [],
     embers = []
 
   function launchRocket(tx, ty, opts = {}) {
@@ -120,7 +119,6 @@ export function createSpriteFirework(canvas) {
   function explode(x, y, hue, size, type) {
     const R = Math.min(W, H) * 0.0022 * size // 基准速度随屏幕缩放
     flashes.push({ x, y, hue, life: 0, ttl: 14, r: 90 * size })
-    rings.push({ x, y, hue, life: 0, ttl: 13, r: 8, maxR: 150 * size, w: 3.2 })
 
     if (type === 'peony' || type === 'double') {
       const n = Math.round(90 * size)
@@ -142,16 +140,6 @@ export function createSpriteFirework(canvas) {
             whiteCore: true,
           })
         }
-        rings.push({
-          x,
-          y,
-          hue: h2,
-          life: -5,
-          ttl: 12,
-          r: 8,
-          maxR: 90 * size,
-          w: 2,
-        })
       }
     } else if (type === 'chrys') {
       const n = Math.round(110 * size)
@@ -263,7 +251,6 @@ export function createSpriteFirework(canvas) {
       rockets.length ||
       sparks.length ||
       flashes.length ||
-      rings.length ||
       embers.length
     if (!busy) {
       idleFrames++
@@ -344,25 +331,6 @@ export function createSpriteFirework(canvas) {
       ctx.globalAlpha = a
       ctx.drawImage(sp, f.x - r, f.y - r, r * 2, r * 2)
       ctx.globalAlpha = 1
-    }
-
-    // 冲击波环
-    for (let i = rings.length - 1; i >= 0; i--) {
-      const g = rings[i]
-      g.life += dt
-      if (g.life < 0) continue
-      const k = g.life / g.ttl
-      if (k >= 1) {
-        rings.splice(i, 1)
-        continue
-      }
-      const ease = 1 - Math.pow(1 - k, 3)
-      const r = g.r + (g.maxR - g.r) * ease
-      ctx.strokeStyle = `hsla(${g.hue},${SATURATION}%,85%,${Math.pow(1 - k, 1.5) * 0.85})`
-      ctx.lineWidth = g.w * (1 - k) + 0.4
-      ctx.beginPath()
-      ctx.arc(g.x, g.y, r, 0, TAU)
-      ctx.stroke()
     }
 
     // 火花:光轨线段 + 发光头
@@ -446,7 +414,6 @@ export function createSpriteFirework(canvas) {
     rockets.length =
       sparks.length =
       flashes.length =
-      rings.length =
       embers.length =
         0
     shake = 0
@@ -466,7 +433,6 @@ export function createSpriteFirework(canvas) {
         rockets.length ||
           sparks.length ||
           flashes.length ||
-          rings.length ||
           embers.length ||
           idleFrames < 3,
       )
@@ -480,7 +446,6 @@ export function createSpriteFirework(canvas) {
           rockets.length +
           sparks.length +
           flashes.length +
-          rings.length +
           embers.length,
         sprites: sprites.size,
       }
