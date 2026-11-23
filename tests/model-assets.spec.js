@@ -18,7 +18,7 @@ async function prepareFramingForFaceAssetTest(page) {
 
 test('starts face tracking with external model CDNs blocked', async ({ page }) => {
   await prepareFramingForFaceAssetTest(page)
-  await page.route('https://cdn.jsdmirror.cn/**', route => route.abort())
+  await page.route('https://starvoid.cn/firework/**', route => route.abort())
   await page.route('https://cdn.jsdelivr.net/**', route => route.abort())
   await page.route('https://storage.googleapis.com/**', route => route.abort())
   await page.goto(process.env.APP_PUBLIC === '1' ? '/firework/' : '/')
@@ -31,10 +31,10 @@ test('starts face tracking with external model CDNs blocked', async ({ page }) =
 })
 
 
-test('loads face assets through the domestic CDN', async ({ page }) => {
+test('loads face assets through Starvoid', async ({ page }) => {
   await prepareFramingForFaceAssetTest(page)
   const requested = []
-  await page.route('https://cdn.jsdmirror.cn/**', async route => {
+  await page.route('https://starvoid.cn/firework/**', async route => {
     const name = basename(new URL(route.request().url()).pathname)
     requested.push(name)
     await route.fulfill({
@@ -49,6 +49,6 @@ test('loads face assets through the domestic CDN', async ({ page }) => {
   await page.locator('#camera-toggle').click()
   await expect(page.locator('#camera-toggle')).toHaveText('关闭摄像头', { timeout: 45000 })
   expect(requested).toContain('face_landmarker.task')
-  // WASM is shared from the site; model downloads use the domestic mirror.
+  // WASM is shared from the site; model downloads use Starvoid.
   await page.locator('#camera-toggle').click()
 })
