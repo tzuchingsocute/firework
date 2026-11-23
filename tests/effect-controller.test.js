@@ -45,3 +45,22 @@ it('zero emission preserves existing rain identity and advances it to natural ex
   }
   expect(rain.drops).toHaveLength(0)
 })
+
+it('wakes the firework handoff once when smile-end and laugh-start share a transition', () => {
+  const source = new EventTarget()
+  source.snapshot = { state: 'SMILE' }
+  const start = vi.fn()
+  const firework = { playing: false }
+  const effect = createEffectController(source, start, () => 100, firework)
+  effect.setMode('expression')
+  start.mockClear()
+  for (const name of ['smile:end', 'laugh:start']) {
+    source.dispatchEvent(new CustomEvent('expression:' + name, {
+      detail: { state: 'LAUGH', timestamp: 100 },
+    }))
+  }
+  expect(start).toHaveBeenCalledTimes(1)
+  firework.playing = true
+  expect(effect.step(.5)).toBe(0)
+  expect(effect.opacity).toBe(0)
+})

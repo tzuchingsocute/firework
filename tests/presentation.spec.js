@@ -8,6 +8,7 @@ test('keeps camera controls accessible in the selected presentation', async ({ p
   if (publicView) {
     await expect(page.locator('.controls')).toBeHidden()
     await expect(debug).toBeHidden()
+    await expect(page.locator('[data-effect-trigger]')).toHaveValue('expression')
   } else {
     await expect(debug).toBeVisible()
     await debug.click()

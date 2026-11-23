@@ -202,9 +202,11 @@ controlsToggle.addEventListener('click', () => {
 
 const firework = mountFirework(expressions)
 mountVisualRain(surface, expressions, firework)
-
-
 if (import.meta.env.MODE === 'pages') {
+  const effectTrigger = document.querySelector('[data-effect-trigger]')
+  effectTrigger.value = 'expression'
+  effectTrigger.dispatchEvent(new Event('change'))
+
   const viewerControls = document.createElement('section')
   viewerControls.className = 'viewer-controls'
   viewerControls.setAttribute('aria-label', '摄像头控制')
