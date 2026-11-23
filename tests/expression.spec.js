@@ -7,7 +7,7 @@ test('real model produces blendshapes in the shared camera loop', async ({page},
   await page.locator('#controls-toggle').click()
   await page.getByRole('button',{name:'开启摄像头'}).click()
   await page.locator('#expression-panel > summary').click()
-  await expect(page.locator('#expression-panel output')).not.toContainText('NO_FACE',{timeout:90000})
+  await expect(page.locator('#expression-panel output')).toHaveAttribute('data-state',/^(NEUTRAL|SMILE|LAUGH)$/,{timeout:90000})
   const value=await page.locator('#expression-panel output').textContent()
   await info.attach('expression-real-inference',{body:value,contentType:'text/plain'})
   expect(value).toMatch(/Smile \d\.\d+/)

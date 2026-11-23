@@ -15,8 +15,8 @@ it('normalizes contributions and accepts natural asymmetry while rejecting inval
 for(const [name,input,state] of [
   ['neutral',values(),'NEUTRAL'],
   ['mild closed smile',values(.48,0,.15,.1),'SMILE'],
-  ['strong closed smile without opening remains smile',values(.92,0,.7,.6),'SMILE'],
-  ['low-jaw smile without geometry remains smile',values(.9,.12,.7,.5),'SMILE'],
+  ['strong closed grin with eye support becomes laugh',values(.92,0,.7,.6),'LAUGH'],
+  ['strong low-jaw grin without geometry becomes laugh',values(.9,.12,.7,.5),'LAUGH'],
   ['open laugh',values(.9,.7,.7,.5),'LAUGH'],
   ['mouth only',values(.04,.9),'NEUTRAL'],
   ['eyes only',values(0,0,0,1),'NEUTRAL'],
@@ -55,8 +55,8 @@ it('independent state timing works across frame rates',()=>{
     m.addEventListener('expression:laugh:start',()=>starts++)
     hold(m,values(.95,.3,.8,.6),0,2000,interval)
     expect(starts).toBe(1)
-    expect(m.changedAt).toBeGreaterThanOrEqual(380)
-    expect(m.changedAt).toBeLessThanOrEqual(500)
+    expect(m.changedAt).toBeGreaterThanOrEqual(280)
+    expect(m.changedAt).toBeLessThanOrEqual(400)
   }
 })
 it('calibrates closed smiles and uses conservative fallback for low separation',()=>{

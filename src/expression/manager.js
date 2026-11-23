@@ -3,7 +3,7 @@ import {poseCorrection} from './pose.js'
 export const defaults = Object.freeze({
   openLaughEnter:.65,openLaughExit:.45,
   smileEnter: .28, smileExit: .21, laughEnter: .60, laughExit: .56,
-  smileHoldMs: 300, laughHoldMs: 380, releaseMs: 420, smoothingMs: 100,
+  smileHoldMs: 300, laughHoldMs: 280, releaseMs: 420, smoothingMs: 100,
   asymmetryPenalty: .2, inhibitionWeight: .55,
   weights: Object.freeze({ mouth: .82, cheek: .1, eye: .05, jaw: .03 }),
   baseline: Object.freeze({ mouth: 0, cheek: 0, eye: 0, jaw: 0 }),

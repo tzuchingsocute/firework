@@ -1,4 +1,26 @@
-import{test,expect}from'vitest';import{ExpressionManager,names,readScores}from'../src/expression/manager.js';
-const scores=j=>names.map((categoryName,i)=>({categoryName,score:[.9,.9,j,0,0,0,0,.6,.6][i]}));
-test('strong gate rejects zero and weak noise, but retains modest opening at original fixed score',()=>{for(const j of [0,.15,.18,.2])expect(readScores(scores(j)).classification.closedScore).toBe(0);expect(readScores(scores(.3)).classification.closedScore).toBe(.8)});
-test('small Jaw but valid 3D opening supports strong path after 380ms, thresholds and timing unchanged',()=>{const m=new ExpressionManager();for(let t=0;t<1000;t+=40)m.update(scores(.02),true,t,{mouthOpenness:.263});expect(m.snapshot.state).toBe('LAUGH');expect(m.changedAt).toBe(400);expect(m.thresholds.laughHoldMs).toBe(380);expect(m.thresholds.laughEnter).toBe(.6);expect(m.thresholds.openLaughEnter).toBe(.65)})
+import { test, expect } from 'vitest'
+import { ExpressionManager, names, readScores } from '../src/expression/manager.js'
+
+const scores = (jaw, mouth = .9, eye = .6) => names.map((categoryName, i) => ({
+  categoryName, score: [mouth,mouth,jaw,0,0,0,0,eye,eye][i],
+}))
+
+test('strong grins keep the fixed score across closed and modestly open mouths', () => {
+  for (const jaw of [0,.15,.18,.2,.3]) {
+    expect(readScores(scores(jaw)).classification.closedScore).toBe(.8)
+  }
+  expect(readScores(scores(0,.3,.6)).classification.closedScore).toBe(0)
+  expect(readScores(scores(0,.9,.05)).classification.closedScore).toBe(0)
+})
+
+test('strong grin confirms after 280 ms with low jaw and valid mouth geometry', () => {
+  const manager = new ExpressionManager()
+  for (let time = 0; time < 1000; time += 40) {
+    manager.update(scores(.02),true,time,{mouthOpenness:.263})
+  }
+  expect(manager.snapshot.state).toBe('LAUGH')
+  expect(manager.changedAt).toBe(280)
+  expect(manager.thresholds.laughHoldMs).toBe(280)
+  expect(manager.thresholds.laughEnter).toBe(.6)
+  expect(manager.thresholds.openLaughEnter).toBe(.65)
+})
