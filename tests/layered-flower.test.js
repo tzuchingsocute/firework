@@ -1,0 +1,3 @@
+import {it,expect} from 'vitest'
+import {layeredFlowerGeometry} from '../src/firework/layered-flower.js'
+it('five independent petals and deterministic layering across ratio and overlap tests',()=>{for(const ratio of [.55,.65,.75])for(const overlap of ['minimal','natural','moderate']){const g=layeredFlowerGeometry({ratio,overlap});expect(g.petals).toHaveLength(5);expect(new Set(g.order).size).toBe(5);expect(g).toEqual(layeredFlowerGeometry({ratio,overlap}));expect(g.centerRadius).toBe(.059);for(const p of g.petals){expect(p.segments[0][0]).toEqual(p.segments.at(-1)[3]);expect(p.segments.flat(2).every(Number.isFinite)).toBe(true)}}})

@@ -15,8 +15,8 @@ it('normalizes contributions and accepts natural asymmetry while rejecting inval
 for(const [name,input,state] of [
   ['neutral',values(),'NEUTRAL'],
   ['mild closed smile',values(.48,0,.15,.1),'SMILE'],
-  ['strong closed smile',values(.92,0,.7,.6),'LAUGH'],
-  ['toothy smile',values(.9,.12,.7,.5),'LAUGH'],
+  ['strong closed smile without opening remains smile',values(.92,0,.7,.6),'SMILE'],
+  ['low-jaw smile without geometry remains smile',values(.9,.12,.7,.5),'SMILE'],
   ['open laugh',values(.9,.7,.7,.5),'LAUGH'],
   ['mouth only',values(.04,.9),'NEUTRAL'],
   ['eyes only',values(0,0,0,1),'NEUTRAL'],
@@ -27,7 +27,7 @@ it('gradual increase and decrease emits one-shot events in order',()=>{
   for(const name of ['smile:start','smile:end','laugh:start','laugh:end']) m.addEventListener('expression:'+name,()=>events.push(name))
   hold(m,values(),0)
   hold(m,values(.5),1240);expect(m.snapshot.state).toBe('SMILE')
-  hold(m,values(.94,0,.8,.6),2480);expect(m.snapshot.state).toBe('LAUGH')
+  hold(m,values(.94,.3,.8,.6),2480);expect(m.snapshot.state).toBe('LAUGH')
   hold(m,values(.5),3720);expect(m.snapshot.state).toBe('SMILE')
   hold(m,values(),4960);expect(m.snapshot.state).toBe('NEUTRAL')
   expect(events).toEqual(['smile:start','smile:end','laugh:start','laugh:end','smile:start','smile:end'])
@@ -53,7 +53,7 @@ it('independent state timing works across frame rates',()=>{
   for(const interval of [16,40,100]) {
     const m=new ExpressionManager();let starts=0
     m.addEventListener('expression:laugh:start',()=>starts++)
-    hold(m,values(.95,0,.8,.6),0,2000,interval)
+    hold(m,values(.95,.3,.8,.6),0,2000,interval)
     expect(starts).toBe(1)
     expect(m.changedAt).toBeGreaterThanOrEqual(380)
     expect(m.changedAt).toBeLessThanOrEqual(500)
@@ -65,7 +65,7 @@ it('calibrates closed smiles and uses conservative fallback for low separation',
   const config=calibrate(data)
   expect(config.laughEnter).toBeGreaterThan(config.laughExit)
   const m=new ExpressionManager();m.thresholds=config
-  hold(m,values(.85,.01,.75,.5),0)
+  hold(m,values(.85,.3,.75,.5),0)
   expect(m.snapshot.state).toBe('LAUGH')
   expect(calibrate({...data,LAUGH:data.SMILE}).calibration.reliable).toBe(false)
   expect(()=>calibrate({...data,SMILE:[]})).toThrow()
@@ -90,7 +90,7 @@ it('accepts overlapping tails and recognizes an independent weaker closed grin a
   expect(config.calibration.overlapping).toBe(true)
   const old=new ExpressionManager(), personalized=new ExpressionManager()
   personalized.thresholds=config
-  const closed=values(.62,0,.32,.18)
+  const closed=values(.62,.3,.32,.18)
   hold(old,closed,0); hold(personalized,closed,0)
   expect(old.snapshot.state).toBe('SMILE')
   expect(personalized.snapshot.state).toBe('LAUGH')

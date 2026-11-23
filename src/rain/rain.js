@@ -100,5 +100,5 @@ export function createRain(random = Math.random) {
       }
     }
   }
-  return { drops, reset, advance }
+  return { drops, reset, advance, prime(duration) { elapsed = Math.max(elapsed, duration * 2) } }
 }

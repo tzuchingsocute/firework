@@ -1,3 +1,5 @@
+import { paintSplash, splashType } from './splash-visual.js'
+import { createCloseUpWeight } from './close-up.js'
 import { createOriginalDroplet } from "./original-droplet.js"
 import { createPersonOcclusion, keepVisible } from './visibility.js'
 import { createDropletAppearance } from './droplet-appearance.js'
@@ -11,7 +13,7 @@ import { world } from '../surface/physics.js'
 import { createInteraction } from './interaction.js'
 import { approvedPresetName, createRain, defaults, fallingSpeed, width, height } from './rain.js'
 
-export function mountVisualRain(surface, expressions) {
+export function mountVisualRain(surface, expressions, firework) {
   const panel = document.querySelector('#visual-rain')
   const canvas = document.querySelector('#visual-rain-canvas')
   const ctx = canvas.getContext('2d')
@@ -30,6 +32,11 @@ export function mountVisualRain(surface, expressions) {
   let lastBirth = '—'
   let bounds
   const rain = createRain()
+  let foregroundSeed = 3187
+  const foreground = createRain(() => ((foregroundSeed = (Math.imul(foregroundSeed, 1664525) + 1013904223) >>> 0) / 2 ** 32))
+  const closeUpWeight = createCloseUpWeight()
+  let closeWeight = 0
+  const foregroundParams = { ...defaults, density: defaults.density * .075 }
   const hands = createHandTracking(video)
   const updateRegions = createAdaptiveRegions()
   const adaptivePanel = panel.querySelector('#adaptive-interaction')
@@ -66,7 +73,7 @@ export function mountVisualRain(surface, expressions) {
   let fps = 0
   const trigger = panel.querySelector('[data-effect-trigger]')
   const effectStatus = panel.querySelector('[data-effect-status]')
-  const effect = createEffectController(expressions, play)
+  const effect = createEffectController(expressions, play, () => performance.now(), firework)
   const manualButtons = ['play','pause','restart','stop'].map(action => panel.querySelector('[data-' + action + ']'))
   expressions?.addEventListener('expression:smile:start', event => {
     if (trigger.value === 'expression') response = { started: event.detail.timestamp }
@@ -96,6 +103,7 @@ export function mountVisualRain(surface, expressions) {
     if (bounds && !Object.keys(next).some(key => Math.abs(next[key] - bounds[key]) > .01)) return false
     if (bounds) {
       rain.reset()
+      foreground.reset()
       interaction.reset()
     }
     bounds = next
@@ -136,6 +144,7 @@ export function mountVisualRain(surface, expressions) {
     }
     if (!interactive() || !scene?.width || !scene.height) return
     for (const drop of interaction.droplets) {
+      if (drop.splash && drop.suppressSplash) continue
       const head = drop.rainSource === 'head' || drop.rainSource === 'hair'
       const inside = drop.position.y >= 0 && drop.position.y <= scene.stageHeight &&
         drop.position.x >= 0 && drop.position.x <= scene.width
@@ -145,13 +154,26 @@ export function mountVisualRain(surface, expressions) {
       if (!keepVisible(drop, scene.face, from, drop.position)) continue
       if (mode === 'falling' || mode === 'impact' && (!head || !drop.splash) ||
           mode === 'attached' && (!head || drop.splash)) continue
+      if (drop.splash) drop.visualAge = (drop.visualAge ?? 0) + (drop.lastVisualTime === undefined ? 0 : Math.max(0,performance.now()-drop.lastVisualTime)/1000)
+      drop.lastVisualTime = performance.now()
+      if (drop.splash && splashType(drop.id) === 'glint') {
+        drop.sparkAnchor ??= { ...drop.position }
+      }
       const particle = {
       x: drop.position.x * sx, y: (drop.position.y + scene.stageTop) * sy,
       size: drop.splash ? .67 : .87, depth: .6, brightness: (drop.splash ? .76 : .87) * (drop.effectWeight ?? 1),
       life: Math.min(1, drop.life * 2.4) * (drop.visibility ?? 1), age: drop.age ?? 0, phase: 0, tail: 0, vy: 0,
       }
       const relation = obscuringPalm(scene.occlusion ?? [], drop.origin, drop.position, 12)
-      if (!relation) { paintDrop(particle); continue }
+      const paint = opacity => {
+        if (drop.splash) paintSplash(ctx, drop.id,
+          drop.sparkAnchor ? drop.sparkAnchor.x * sx : particle.x,
+          drop.sparkAnchor ? (drop.sparkAnchor.y + scene.stageTop) * sy : particle.y,
+          drop.velocity.x * sx, drop.velocity.y * sy, 1.25, particle.life,
+          particle.brightness * opacity, drop.visualAge)
+        else paintDrop({ ...particle, brightness: particle.brightness * opacity })
+      }
+      if (!relation) { paint(1); continue }
       const palm = relation.palm
       const outline = new Path2D()
       const stageTransform = new DOMMatrix([sx, 0, 0, sy, 0, scene.stageTop * sy])
@@ -159,7 +181,67 @@ export function mountVisualRain(surface, expressions) {
       localEllipse.ellipse(palm.center.x, palm.center.y, palm.radius.x, palm.radius.y, palm.angle, 0, Math.PI * 2)
       outline.addPath(localEllipse, stageTransform)
       paintShoulderEffect(ctx, outline, relation.opacity, width, height,
-        opacity => paintDrop({ ...particle, brightness: particle.brightness * opacity }))
+        paint)
+    }
+    // Contact optics share the final face mask and the same visible-video clip as the rain.
+    if (mode === 'all' || mode === 'impact') for (const hit of interaction.impacts) {
+      const age = .65 - hit.life
+      if (hit.feedbackLevel === 0 || !hit.visible || age > .36 || hit.surface === 'face') continue
+      if (!keepVisible(hit, scene.face, hit, hit)) continue
+      const relation = obscuringPalm(scene.occlusion ?? [], hit.surface, hit, 18)
+      const draw = opacity => {
+        ctx.save()
+        ctx.translate(hit.x * sx, (hit.y + scene.stageTop) * sy)
+        ctx.scale(sx, sy)
+        ctx.rotate(Math.atan2(hit.normal?.y ?? -1, hit.normal?.x ?? 0) + Math.PI / 2)
+        const weight = hit.visualWeight * opacity
+        if (age < .085) {
+          ctx.globalAlpha = weight * (1 - age / .085) * .85
+          ctx.fillStyle = '#e8f8ff'
+          ctx.beginPath()
+          ctx.ellipse(0, 0, 1.8, .85, 0, 0, Math.PI * 2)
+          ctx.fill()
+        }
+        if (age > .025 && age < .29) {
+          const progress = (age - .025) / .265
+          ctx.globalAlpha = weight * (1 - progress) ** 1.5 * .46
+          ctx.strokeStyle = '#a5dcfa'
+          ctx.lineWidth = .65
+          ctx.beginPath()
+          ctx.ellipse(0, -.4, 2 + progress * 7, .7 + progress * 2, 0, 0, Math.PI * 2)
+          ctx.stroke()
+        }
+        ctx.restore()
+        for (const [index, spark] of (hit.sparks ?? []).entries()) {
+          if (age < .035 || age > spark.duration) continue
+          const t = age - .035
+          let visualId = hit.id * 7 + index + 1
+          if (hit.surface === 'head' || hit.surface === 'hair') {
+            // Keep light feedback restrained; emphasized contacts use the shared 50/30/20 mix.
+            if (hit.feedbackLevel === 1) while (splashType(visualId) === 'glint') visualId++
+          }
+          const nearContact = splashType(visualId) === 'glint'
+          const travel = nearContact ? Math.min(t,.018) : t
+          const point = { x: hit.x + spark.vx * travel, y: hit.y + spark.vy * travel + 32 * travel * travel }
+          if (!keepVisible(spark, scene.face, spark.previous ?? hit, point)) continue
+          spark.previous = point
+          const obstruction = obscuringPalm(scene.occlusion ?? [], hit.surface, point, 3)
+          if (obstruction?.opacity === 0) continue
+          paintSplash(ctx, visualId, point.x * sx, (point.y + scene.stageTop) * sy,
+            spark.vx * sx, (spark.vy + 64*t) * sy, spark.size * 1.7,
+            1-age/spark.duration, weight * (obstruction?.opacity ?? 1) * .65, t)
+        }
+        ctx.globalAlpha = 1
+      }
+      if (!relation) draw(1)
+      else {
+        const outline = new Path2D()
+        const shape = new Path2D()
+        const palm = relation.palm
+        shape.ellipse(palm.center.x,palm.center.y,palm.radius.x,palm.radius.y,palm.angle,0,Math.PI*2)
+        outline.addPath(shape,new DOMMatrix([sx,0,0,sy,0,scene.stageTop*sy]))
+        paintShoulderEffect(ctx,outline,relation.opacity,width,height,draw)
+      }
     }
     if (showPerson.checked) occludePerson(ctx, scene, sx, sy, true)
     ctx.save()
@@ -203,6 +285,7 @@ export function mountVisualRain(surface, expressions) {
       ctx.strokeStyle = '#9ee9ff'
       ctx.beginPath()
       for (const drop of interaction.droplets) {
+      if (drop.splash && drop.suppressSplash) continue
         ctx.moveTo(drop.position.x, drop.position.y)
         ctx.lineTo(drop.position.x - drop.velocity.x * .08, drop.position.y - drop.velocity.y * .08)
       }
@@ -227,12 +310,21 @@ export function mountVisualRain(surface, expressions) {
       }
     }
     hands.draw(ctx, interaction.impacts, scene.occlusion)
+    if ((mode === 'all' || mode === 'falling') && closeWeight > .001) {
+      ctx.save()
+      ctx.setTransform(1, 0, 0, 1, 0, 0)
+      for (const drop of foreground.drops) {
+        drop.foregroundMix = closeWeight
+        paintDrop(drop, true)
+      }
+      ctx.restore()
+    }
     ctx.restore()
   }
 
   function paintDrop(drop, falling = false) {
     const radius = drop.size * params.core * (.68 + drop.depth * .64)
-    const alpha = drop.brightness * drop.life * (falling && interactive() ? drop.visibility ?? 1 : 1) * (.88 + .12 * Math.sin(drop.age * 3 + drop.phase))
+    const alpha = (drop.lensForeground ? closeWeight * .32 : 1) * drop.brightness * drop.life * (falling && interactive() ? drop.visibility ?? 1 : 1) * (.88 + .12 * Math.sin(drop.age * 3 + drop.phase))
     const length = Math.min(72, (drop.trailSpeed ?? drop.vy) * .117 * drop.tail * params.trail)
     if (falling && paintFalling(drop, radius, alpha, length, params, bounds)) return
     paintOriginal(drop, radius, alpha, length, params)
@@ -245,6 +337,7 @@ export function mountVisualRain(surface, expressions) {
     sampleStart ??= now
     const collisionStart = performance.now()
     scene = surface.interactionFrame(now)
+    closeWeight = closeUpWeight(scene, bounds, now, dt)
     const handPatches = hands.current(now, scene, interactive())
     if (interactive()) {
       scene.occlusion = shoulderOcclusion(handPatches.filter(patch => patch.hand === 'palm'),
@@ -256,6 +349,9 @@ export function mountVisualRain(surface, expressions) {
         width: bounds.width * sx, height: bounds.height * sy } : null, dt, now)
       interaction.begin({ ...scene, visibleBounds: bounds, adaptive: regions, inspect: hands.inspecting ? hands.candidate : undefined }, dt)
     }
+    const emission = effect.step(dt)
+    canvas.style.opacity = effect.opacity
+    if (effect.consumeResume()) { rain.prime(params.buildup); foreground.prime(params.buildup) }
     rain.advance(dt, params, (drop, seconds) => {
       if (response) {
         if (drop.newborn) response.generated ??= now - response.started
@@ -282,7 +378,14 @@ export function mountVisualRain(surface, expressions) {
         return false
       }
       return interaction.advance(drop, seconds)
-    }, bounds, effect.step(dt))
+    }, bounds, emission)
+    // This separately budgeted depth layer is born at the video top and never enters collision candidates.
+    foreground.advance(dt, foregroundParams, drop => {
+      drop.lensForeground = true
+      if (drop.newborn && foreground.drops.length > 32) return false
+    }, bounds, interactive() ? emission : 0)
+    canvas.dataset.foregroundCount = foreground.drops.length
+    canvas.dataset.closeWeight = closeWeight.toFixed(3)
     canvas.dataset.impacts = interactive() ? interaction.impacts.length : 0
     const renderStart = performance.now()
     paint()
@@ -339,6 +442,7 @@ ${adaptiveDebug.weights.checked ? '混合权重 ' + Object.entries(regions.weigh
     if (state === 'stopped') {
       hands.reset()
       rain.reset()
+      foreground.reset()
       interaction.reset()
       paint()
       canvas.hidden = !toggles.bounds.checked

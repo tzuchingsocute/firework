@@ -1,0 +1,9 @@
+import {starContour,projectStarContour,randomViews} from './star-perspective.js'
+import {secondaryStarGeometry} from './secondary-rays.js'
+export const starTypes=['four','eight']
+export function starGeometry(type){if(!starTypes.includes(type))throw new Error('Only four and eight are supported');return type==='four'?starContour():secondaryStarGeometry({secondaryRayCount:4,seed:6019}).points}
+export function projectCompatibleStar(type,view,size=63){return projectStarContour(starGeometry(type),view,size)}
+export const compatibilityViews=[{yaw:0,pitch:0,roll:0},{yaw:-22,pitch:0,roll:0},{yaw:22,pitch:0,roll:0},{yaw:-43,pitch:0,roll:0},{yaw:43,pitch:0,roll:0},{yaw:0,pitch:-42,roll:0},{yaw:0,pitch:42,roll:0},{yaw:-25,pitch:25,roll:0},{yaw:43,pitch:-30,roll:24}]
+export function compatibleRandomViews(seed=6111){return randomViews(seed,12)}
+export function paintCompatibleStar(ctx,type,view,x,y,size=63,glow=false){ctx.save();ctx.translate(x,y);ctx.beginPath();projectCompatibleStar(type,view,size).forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();if(glow){ctx.shadowColor='#c5adff';ctx.shadowBlur=13;ctx.fillStyle='#e9deff';ctx.fill();ctx.shadowBlur=0}ctx.fillStyle='#f6f0ff';ctx.fill();ctx.restore()}
+export function compatibilityMatrix(canvas,views,{paired=true,zoom=false}={}){const columns=3;canvas.width=columns*360;canvas.height=Math.ceil(views.length/columns)*265;const ctx=canvas.getContext('2d');ctx.fillStyle='#101522';ctx.fillRect(0,0,canvas.width,canvas.height);views.forEach((v,i)=>{const x=i%columns*360+180,y=Math.floor(i/columns)*265+105;ctx.save();ctx.beginPath();ctx.rect(x-180,y-105,360,265);ctx.clip();if(paired){paintCompatibleStar(ctx,'four',v,x-80,y,55);paintCompatibleStar(ctx,'eight',v,x+80,y,55)}else paintCompatibleStar(ctx,'eight',v,x,y,zoom?140:63);ctx.restore();ctx.fillStyle='#dae2f3';ctx.textAlign='center';ctx.font='13px monospace';ctx.fillText(`Y ${v.yaw} P ${v.pitch} R ${v.roll}`,x,y+112)})}

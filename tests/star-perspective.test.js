@@ -1,0 +1,3 @@
+import {it,expect} from 'vitest'
+import {starContour,projectStar,fixedViews,randomViews} from '../src/firework/star-perspective.js'
+it('same closed continuous source with finite bounded seeded perspective',()=>{expect(starContour()).toHaveLength(192);expect(randomViews(6061)).toEqual(randomViews(6061));for(const v of [...fixedViews,...randomViews(6061)]){const p=projectStar(v);expect(p.every(q=>Number.isFinite(q.x)&&Number.isFinite(q.y))).toBe(true);expect(Math.max(...p.map(q=>q.x))-Math.min(...p.map(q=>q.x))).toBeGreaterThan(35)}const front=projectStar(fixedViews[0]),side=projectStar(fixedViews[3]);expect(Math.max(...side.map(p=>p.x))).toBeLessThan(Math.max(...front.map(p=>p.x)))})

@@ -1,0 +1,3 @@
+import {test,expect} from '@playwright/test'
+import {writeFile} from 'node:fs/promises'
+test('butterfly matrices and actual scale',async({page})=>{await page.goto('/previews/butterfly-shape.html');await expect(page.locator('#open')).toHaveJSProperty('width',1250);for(const id of ['open','views','mixed','material','live']){const url=await page.locator('#'+id).evaluate(c=>c.toDataURL());await writeFile(`reports/butterfly-${id}.png`,Buffer.from(url.split(',')[1],'base64'))}const data=await page.evaluate(async()=>{const m=await import('/src/firework/butterfly-shape.js');return {seed:6062,samples:m.seededButterflies(6062)}});await writeFile('reports/butterfly-parameters.json',JSON.stringify(data,null,2))})

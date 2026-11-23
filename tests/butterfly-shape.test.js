@@ -1,0 +1,3 @@
+import {it,expect} from 'vitest'
+import {butterflyGeometry,seededButterflies} from '../src/firework/butterfly-shape.js'
+it('continuous hinged wings, reproducible finite projection',()=>{expect(seededButterflies(6062)).toEqual(seededButterflies(6062));const width=o=>{const p=butterflyGeometry({openness:o}).flatMap(s=>s.points);return Math.max(...p.map(p=>p.x))-Math.min(...p.map(p=>p.x))};expect(width(1)).toBeGreaterThan(width(.5));expect(width(.5)).toBeGreaterThan(width(.12));for(const v of seededButterflies(6062)){const s=butterflyGeometry(v);expect(s).toHaveLength(4);expect(s.every(s=>s.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y)))).toBe(true)}})

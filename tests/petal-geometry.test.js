@@ -1,0 +1,3 @@
+import {it,expect} from 'vitest'
+import {samplePetal} from '../src/firework/petal-geometry.js'
+it('same length, continuous finite contours and increasing widths',()=>{const widths=[];for(const type of ['A','B','C']){const p=samplePetal(type);expect(Math.max(...p.map(p=>p.y))).toBe(1);expect(p.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y))).toBe(true);widths.push(Math.max(...p.map(p=>p.x))-Math.min(...p.map(p=>p.x)));for(let i=0;i<p.length;i++)expect(Math.hypot(p[i].x-p[(i+1)%p.length].x,p[i].y-p[(i+1)%p.length].y)).toBeLessThan(.04)}expect(widths[0]).toBeLessThan(widths[1]);expect(widths[1]).toBeLessThan(widths[2])})

@@ -416,7 +416,16 @@ export function createSurfaceDemo(video, framing) {
           }))
         poseDepth = { time: latest.time, shoulders: { 'left-shoulder': left, 'right-shoulder': right }, wrists: [leftWrist, rightWrist] }
       }
+      let faceCoverage = 0
+      if (ready && latest.mask?.length && now - latest.time <= 500) {
+        let count = 0
+        for (let y = 0; y < 12; y++) for (let x = 0; x < 12; x++) {
+          if (maskCategoryAt(latest, width, height, {x:(x+.5)*width/12,y:(y+.5)*height/12}) === 3) count++
+        }
+        faceCoverage = count / 144
+      }
       return {
+        faceCoverage,
         width: roomWidth, height: roomHeight, stageTop, stageHeight: height,
         key: `${width}:${height}:${stageTop}:${fit}`,
         cameraActive: Boolean(video.srcObject),

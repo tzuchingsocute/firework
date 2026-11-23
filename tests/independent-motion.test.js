@@ -1,0 +1,3 @@
+import {it,expect} from 'vitest'
+import {createIndependentMotion,particlePosition} from '../src/firework/independent-motion.js'
+it('independent gravity, lifetimes and reproducibility',()=>{const c=createIndependentMotion();expect(c).toEqual(createIndependentMotion());const group=c.particles.filter(p=>p.strokeId===0);expect(new Set(group.map(p=>p.gravity)).size).toBeGreaterThan(5);expect(new Set(group.map(p=>p.lifetime)).size).toBeGreaterThan(5);const [a,b]=group;const delta=t=>{const x=particlePosition(a,t),y=particlePosition(b,t);return Math.hypot(x.x-y.x,x.y-y.y)};expect(delta(1.8)).not.toBeCloseTo(delta(.55));expect(c.particles.every(p=>p.birthTime+p.lifetime<3.2)).toBe(true)})

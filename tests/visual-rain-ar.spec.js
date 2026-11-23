@@ -59,6 +59,10 @@ test('composites replayed surface geometry and erases rain over the face', async
 
 for (const legacy of [true, false]) test(`cropped face continuity (${legacy ? 'mask only' : 'terminated tracks'})`, async ({ page }) => {
   test.skip(!process.env.RAIN_AR_DEV_URL, 'Requires Vite source modules')
+  await page.addInitScript(() => {
+    let seed = 1201
+    Math.random = () => ((seed = (Math.imul(seed,1664525)+1013904223)>>>0)/2**32)
+  })
   if (legacy) await page.route('**/src/rain/visibility.js*', async route => {
     const response = await route.fetch()
     const source = await response.text()
@@ -90,4 +94,29 @@ for (const legacy of [true, false]) test(`cropped face continuity (${legacy ? 'm
   expect(pixels).toEqual({belowFace:legacy, outside:true})
   await page.locator('.live-room').screenshot({ path:`reports/rain-visibility-cropped-${legacy ? 'before' : 'after'}.png` })
   console.log(await panel.locator('#rain-visibility output').textContent())
+})
+
+test('close-up atmosphere remains visible with the head outside frame', async ({page}) => {
+  test.skip(!process.env.RAIN_AR_DEV_URL, 'Requires Vite source modules')
+  await page.goto(process.env.RAIN_AR_DEV_URL)
+  await page.locator('#controls-toggle').click()
+  await page.evaluate(async()=>{
+    const {mountVisualRain}=await import('/src/rain/visual.js')
+    window.closeRatio=.35
+    mountVisualRain({setInteractive(){},interactionFrame(){
+      const r=window.closeRatio
+      return {key:'close',width:414,height:896,stageTop:0,stageHeight:896,cameraActive:true,patches:[],valid:()=>false,
+        face:{center:207,margin:4,points:[{x:207-r*207,y:0},{x:207+r*207,y:0},{x:207+r*207,y:750},{x:207-r*207,y:750}]}}
+    }})
+  })
+  const panel=page.locator('#visual-rain')
+  await panel.locator(':scope > summary').click()
+  await panel.locator('[data-rain-mode]').selectOption('interactive')
+  await panel.locator('[data-play]').click()
+  for(const [name,ratio] of [['normal',.35],['close',.75],['extreme',.99]]) {
+    await page.evaluate(r=>{window.closeRatio=r},ratio)
+    await page.waitForTimeout(4000)
+    await page.locator('.live-room').screenshot({path:`reports/close-up-${name}.png`})
+  }
+  expect(await page.locator('#visual-rain-canvas').evaluate(c=>c.getContext('2d').getImageData(90,300,230,250).data.some((v,i)=>i%4===3&&v>0))).toBe(true)
 })

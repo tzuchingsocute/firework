@@ -1,0 +1,3 @@
+import {test,expect} from '@playwright/test'
+import {writeFile} from 'node:fs/promises'
+test('variable count organic arrangement matrices',async({page})=>{await page.goto('/previews/organic-flower-count.html');await expect(page.locator('#counts')).toHaveJSProperty('width',780);for(const id of ['counts','arrangements','proportions','random','diagnostic','glow','perspective','live']){const url=await page.locator('#'+id).evaluate(c=>c.toDataURL());await writeFile(`reports/organic-flower-count-${id}.png`,Buffer.from(url.split(',')[1],'base64'))}await writeFile('reports/organic-flower-count-stats.json',await page.locator('#stats').textContent())})

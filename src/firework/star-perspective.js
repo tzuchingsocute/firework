@@ -1,0 +1,14 @@
+// Standalone geometry study. Local plane -> yaw/pitch/roll -> perspective.
+export const fixedViews=[
+ {name:'01 Front',yaw:0,pitch:0,roll:0},{name:'02 Left mild',yaw:-22,pitch:0,roll:0},{name:'03 Right medium',yaw:43,pitch:0,roll:0},{name:'04 Left strong',yaw:-62,pitch:0,roll:0},{name:'05 Pitch up',yaw:0,pitch:-42,roll:0},{name:'06 Pitch down',yaw:0,pitch:52,roll:0},{name:'07 Yaw + pitch',yaw:-25,pitch:25,roll:0},{name:'08 Compound medium',yaw:43,pitch:-30,roll:24},{name:'09 Compound seeded',yaw:-48,pitch:33,roll:-32}]
+const rad=d=>d*Math.PI/180
+// Four sharp tips and identical inward-curving quadrants, sampled from cubics.
+export function starContour(){const points=[],tips=[[0,-1],[.76,0],[0,1],[-.76,0]]
+ for(let i=0;i<4;i++){const a=tips[i],b=tips[(i+1)%4],c=[a[0]*.12,a[1]*.12],d=[b[0]*.12,b[1]*.12];for(let k=0;k<48;k++){const t=k/48,u=1-t;points.push({x:u*u*u*a[0]+3*u*u*t*c[0]+3*u*t*t*d[0]+t*t*t*b[0],y:u*u*u*a[1]+3*u*u*t*c[1]+3*u*t*t*d[1]+t*t*t*b[1]})}}return points}
+export function projectStar(view,size=63){return projectStarContour(starContour(),view,size)}
+export function projectStarContour(contour,view,size=63){const yaw=rad(view.yaw),pitch=rad(view.pitch),roll=rad(view.roll),camera=230
+ return contour.map(p=>{let x=p.x*size,y=p.y*size,z=0;let nx=x*Math.cos(yaw)+z*Math.sin(yaw),nz=-x*Math.sin(yaw)+z*Math.cos(yaw);x=nx;z=nz;const ny=y*Math.cos(pitch)-z*Math.sin(pitch);nz=y*Math.sin(pitch)+z*Math.cos(pitch);y=ny;z=nz;nx=x*Math.cos(roll)-y*Math.sin(roll);const ry=x*Math.sin(roll)+y*Math.cos(roll),scale=camera/(camera-z);return {x:nx*scale,y:ry*scale,z}})
+}
+export function randomViews(seed=6061,count=12){let n=seed>>>0;const r=()=>((n=(Math.imul(n,1664525)+1013904223)>>>0)/4294967296);return Array.from({length:count},(_,i)=>({name:`Seed ${seed} / ${i+1}`,yaw:Math.round((r()-.5)*104),pitch:Math.round((r()-.5)*84),roll:Math.round((r()-.5)*90)}))}
+export function paintPerspectiveStar(ctx,view,x,y,size=63){const points=projectStar(view,size);ctx.save();ctx.translate(x,y);ctx.beginPath();points.forEach((p,i)=>i?ctx.lineTo(p.x,p.y):ctx.moveTo(p.x,p.y));ctx.closePath();ctx.shadowColor='#c5adff';ctx.shadowBlur=13;ctx.fillStyle='#e9deff';ctx.fill();ctx.shadowBlur=0;ctx.fillStyle='#f6f0ff';ctx.fill();ctx.restore()}
+export function paintMatrix(canvas,views,columns=3){const ctx=canvas.getContext('2d'),rows=Math.ceil(views.length/columns);canvas.width=columns*300;canvas.height=rows*265;ctx.fillStyle='#101522';ctx.fillRect(0,0,canvas.width,canvas.height);views.forEach((v,i)=>{const x=(i%columns)*300+150,y=Math.floor(i/columns)*265+110;paintPerspectiveStar(ctx,v,x,y);ctx.textAlign='center';ctx.fillStyle='#e4e8f5';ctx.font='15px sans-serif';ctx.fillText(v.name,x,y+98);ctx.fillStyle='#a5afc7';ctx.font='13px monospace';ctx.fillText(`Yaw ${v.yaw}°  Pitch ${v.pitch}°  Roll ${v.roll}°`,x,y+121)})}

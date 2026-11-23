@@ -1,0 +1,3 @@
+import {test,expect} from '@playwright/test'
+import {writeFile} from 'node:fs/promises'
+test('independent elongated star matrices',async({page})=>{await page.goto('/previews/elongated-star.html');await expect(page.locator('#shapes')).toHaveJSProperty('width',900);for(const id of ['shapes','views','mixed','live']){const url=await page.locator('#'+id).evaluate(c=>c.toDataURL());await writeFile(`reports/elongated-star-${id}.png`,Buffer.from(url.split(',')[1],'base64'))}const data=await page.evaluate(async()=>{const m=await import('/src/firework/elongated-star.js');return {seed:6018,shapes:m.shapeViews,mixed:m.mixedStars()}});await writeFile('reports/elongated-star-parameters.json',JSON.stringify(data,null,2))})

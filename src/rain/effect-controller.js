@@ -1,4 +1,4 @@
-export function createEffectController(expressions, start, now = () => performance.now()) {
+export function createEffectController(expressions, start, now = () => performance.now(), firework) {
   let mode = 'manual'
   let state = expressions?.snapshot.state ?? 'NO_FACE'
   let intensity = 0
@@ -6,6 +6,7 @@ export function createEffectController(expressions, start, now = () => performan
   let eventAt
   let latency
   let hold = 0
+  let opacity = 1, transitioning = false, wasPlaying = false, resumed = false
   const events = ['smile:start','smile:end','laugh:start','laugh:end','face:lost','face:recovered']
   for (const event of events) expressions?.addEventListener('expression:' + event, ({ detail }) => {
     const wasSmile = state === 'SMILE'
@@ -13,7 +14,8 @@ export function createEffectController(expressions, start, now = () => performan
     eventName = event
     if (wasSmile && state !== 'SMILE') hold = state === 'NO_FACE' ? 0 : .12
     if (state === 'NO_FACE') { intensity = 0; hold = 0 }
-    if (state === 'SMILE' && !wasSmile && mode === 'expression') {
+    if (state === 'LAUGH' && mode === 'expression') start()
+    if (state === 'SMILE' && !wasSmile && mode === 'expression' && !firework?.playing) {
       eventAt = detail.timestamp
       latency = undefined
       hold = 0
@@ -23,13 +25,25 @@ export function createEffectController(expressions, start, now = () => performan
   return {
     setMode(value) {
       mode = value
+      if (mode === 'manual') { opacity = 1; transitioning = false }
       intensity = 0
       hold = 0
       eventAt = undefined
       latency = undefined
       if (value === 'expression' && state === 'SMILE') start()
     },
+    get opacity() { return opacity },
+    consumeResume() { const value = resumed; resumed = false; return value },
     step(dt) {
+      const playing = Boolean(firework?.playing)
+      if (playing) transitioning = true
+      if (wasPlaying && !playing && mode === 'expression' && state === 'SMILE') { resumed = true; start() }
+      wasPlaying = playing
+      if (transitioning && mode === 'expression') {
+        const goal = !playing && state === 'SMILE' ? 1 : 0
+        opacity += Math.sign(goal-opacity) * Math.min(Math.abs(goal-opacity), dt/(goal ? .65 : .5))
+        if (playing || state !== 'SMILE') { intensity = 0; return 0 }
+      }
       if (mode === 'manual') return 1
       hold = Math.max(0, hold - dt)
       const goal = state === 'SMILE' || hold > 0 ? 1 : 0

@@ -1,8 +1,11 @@
+import {expressionGeometry} from './pose.js'
+import {createExpressionDiagnostics} from './diagnostics.js'
 import { ExpressionManager, readScores, calibrate, defaults, withSensitivity, tuneSmile, recalibrateSmile } from './manager.js'
 export const expressions = new ExpressionManager()
 
 export function createExpressionPanel() {
   const panel = document.querySelector('#expression-panel')
+  const diagnostics=createExpressionDiagnostics(panel,expressions)
   const state = panel.querySelector('output')
   const message = panel.querySelector('[role=status]')
   const plot = panel.querySelector('canvas')
@@ -106,8 +109,9 @@ export function createExpressionPanel() {
   return {
     update(result, now, frozen) {
       const categories = result.faceBlendshapes?.[0]?.categories
-      const raw = !frozen && result.faceLandmarks?.length && readScores(categories)
-      expressions.update(categories, Boolean(raw), now)
+      const video=document.querySelector('#camera'),geometry={...expressionGeometry(result,video.videoWidth?video.videoHeight/video.videoWidth:1),source:frozen?'frozen-image':'camera-model',modelFaceDetected:Boolean(result.faceLandmarks?.[0]?.length)}
+      const raw = !frozen && result.faceLandmarks?.length && readScores(categories,expressions.thresholds,geometry)
+      expressions.update(categories, Boolean(raw), now,geometry)
       if (capturing) {
         if (!raw) {
           clearTimeout(timer); capturing = undefined
@@ -115,7 +119,7 @@ export function createExpressionPanel() {
           controls()
         } else {
           const rows = samples[capturing]
-          rows.push({ ...raw, time: now })
+          rows.push({ ...raw, geometry, time: now })
           progress.value = now - rows[0].time
           detail.textContent = `${guidance[capturing]} · 有效 ${rows.length} 帧 · 当前绝对强度 ${raw.absoluteIntensity.toFixed(3)}`
         }
@@ -127,6 +131,7 @@ export function createExpressionPanel() {
       expressions.expire(now)
       if (!panel.open || now - lastDraw < 100) return
       lastDraw = now
+      diagnostics.render(now)
       const value = expressions.snapshot
       state.dataset.state = value.state
       state.textContent = `${value.state} · Smile ${value.smileScore.toFixed(3)} · Jaw ${value.jawOpenScore.toFixed(3)} · Laugh ${value.laughScore.toFixed(3)}
@@ -134,9 +139,9 @@ Intensity ${value.smileIntensity.toFixed(3)}（个人校准后） · 绝对 ${va
 Cheek ${value.cheekScore.toFixed(3)} · Eye ${value.eyeSquintScore.toFixed(3)}
 持续 ${((now - expressions.changedAt) / 1000).toFixed(1)}s · 最近切换 ${expressions.changedAt.toFixed(0)}ms
 原始嘴角 ${(expressions.rawSmile ?? 0).toFixed(3)} · 微笑进入 ${expressions.thresholds.smileEnter.toFixed(3)} / 退出 ${expressions.thresholds.smileExit.toFixed(3)}
-保持进度 ${Math.round((expressions.holdProgress ?? 0) * 100)}% · ${expressions.pending?.state ?? '无待切换状态'} · 最近切换 ${expressions.transitionReason ?? '—'}`
+张嘴路径阈值 ${expressions.thresholds.openLaughEnter??.65} / ${expressions.thresholds.openLaughExit??.45} · 强笑容兼容路径门槛 ${expressions.thresholds.laughEnter.toFixed(3)}（灵敏度/校准作用于此）\n保持进度 ${Math.round((expressions.holdProgress ?? 0) * 100)}% · ${expressions.pending?.state ?? '无待切换状态'} · 最近切换 ${expressions.transitionReason ?? '—'}`
       explanation.textContent = `嘴角贡献 ${value.contributions.mouth.toFixed(3)} · 脸颊贡献 ${value.contributions.cheek.toFixed(3)} · 眼部贡献 ${value.contributions.eye.toFixed(3)} · 张嘴贡献 ${value.contributions.jaw.toFixed(3)}
-${value.state === 'LAUGH' ? '强烈笑容强度已持续达到高阈值；嘴角是核心证据，张嘴贡献可以为零。' : '持续高强度笑容可进入 LAUGH。单纯张嘴或眯眼缺少嘴角支持。'}`
+${value.state === 'LAUGH' ? '已通过张嘴路径或强笑容兼容路径；有效阈值见上方，脸颊不是必需条件。' : '持续高强度笑容可进入 LAUGH。单纯张嘴或眯眼缺少嘴角支持。'}`
       context.clearRect(0, 0, plot.width, plot.height)
       for (const [key, color] of [['mouthSmileScore', '#60eac4'], ['cheekScore', '#ffa166'], ['eyeSquintScore', '#7db6ff'], ['jawOpenScore', '#ffd166'], ['smileIntensity', '#e88cff']]) {
         context.strokeStyle = color
@@ -150,6 +155,7 @@ ${value.state === 'LAUGH' ? '强烈笑容强度已持续达到高阈值；嘴角
       }
     },
     reset(now) {
+      diagnostics.reset()
       expressions.lose(now)
       clearTimeout(timer)
       if (capturing) message.textContent = '摄像头已停止，当前采集无效'

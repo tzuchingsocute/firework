@@ -141,3 +141,31 @@ it('retires a swept front drop and never restores it below the chin or after fac
   expect(keepVisible(drop, null, {x:60,y:142}, {x:60,y:180})).toBe(false)
   expect(keepVisible({}, face, {x:5,y:20}, {x:5,y:180})).toBe(true)
 })
+
+it('smoothly adapts close-up foreground and holds through brief face loss', async () => {
+  const { createCloseUpWeight } = await import('../src/rain/close-up.js')
+  const update = createCloseUpWeight()
+  const bounds = {width:414}
+  const scene = ratio => ({width:414,height:896,face:{points:[{x:0,y:0},{x:414*ratio,y:700}]}})
+  expect(update(scene(.3),bounds,0,.016)).toBe(0)
+  const first = update(scene(.99),bounds,16,.016)
+  expect(first).toBeLessThan(.03)
+  let value
+  for(let i=1;i<150;i++) value=update(scene(.99),bounds,16+i*16,.016)
+  expect(value).toBeGreaterThan(.95)
+  expect(update({width:414,height:896},bounds,2500,.016)).toBeGreaterThan(.95)
+  for(let i=0;i<200;i++) value=update(scene(.3),bounds,2600+i*16,.016)
+  expect(value).toBeLessThan(.02)
+})
+
+it('retains near-camera evidence from a fresh partial face segmentation without full landmarks', async () => {
+  const { createCloseUpWeight } = await import('../src/rain/close-up.js')
+  const update = createCloseUpWeight()
+  let weight
+  for(let i=0;i<180;i++) weight=update({width:414,height:896,personMask:{},faceCoverage:.93},
+    {width:414},i*16,.016)
+  expect(weight).toBeGreaterThan(.95)
+  expect(update({width:414,height:896}, {width:414},3500,.016)).toBeGreaterThan(.95)
+  for(let i=0;i<600;i++) weight=update({width:414,height:896}, {width:414},6000+i*16,.016)
+  expect(weight).toBeLessThan(.01)
+})

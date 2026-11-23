@@ -1,0 +1,3 @@
+import {test,expect} from '@playwright/test'
+import {writeFile} from 'node:fs/promises'
+test('fixed and seeded star projections',async({page})=>{await page.goto('/previews/star-perspective.html');await expect(page.locator('#fixed')).toHaveJSProperty('width',900);for(const id of ['fixed','random']){const url=await page.locator('#'+id).evaluate(c=>c.toDataURL());await writeFile(`reports/star-perspective-${id}.png`,Buffer.from(url.split(',')[1],'base64'))}const data=await page.evaluate(async()=>{const m=await import('/src/firework/star-perspective.js');return {fixed:m.fixedViews,seed:6061,random:m.randomViews(6061)}});await writeFile('reports/star-perspective-angles.json',JSON.stringify(data,null,2))})

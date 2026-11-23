@@ -1,0 +1,3 @@
+import {it,expect} from 'vitest'
+import {createOrganicFlower} from '../src/firework/organic-flower-count.js'
+it('deterministic 3/4/5 independent petals with bounded arrangement',()=>{for(let seed=0;seed<100;seed++){const f=createOrganicFlower(seed);expect(f).toEqual(createOrganicFlower(seed));expect([3,4,5]).toContain(f.petalCount);expect(f.petals).toHaveLength(f.petalCount);for(const p of f.petals){expect(p.length).toBeGreaterThanOrEqual(.88);expect(p.length).toBeLessThanOrEqual(1.12);expect(p.width).toBeGreaterThanOrEqual(.92);expect(p.width).toBeLessThanOrEqual(1.08);expect(p.points.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.y))).toBe(true)}}expect(()=>createOrganicFlower(1,{petalCount:6})).toThrow()})

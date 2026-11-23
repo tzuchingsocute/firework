@@ -20,6 +20,7 @@ export async function createTracker() {
     runningMode: 'VIDEO',
     numFaces: 1,
     outputFaceBlendshapes: true,
+    outputFacialTransformationMatrixes: true,
   })
   try {
     return await FaceLandmarker.createFromOptions(files, options('GPU'))

@@ -45,9 +45,15 @@ export function createDropletAppearance(ctx, config = appearance) {
     const type = !total || sample * total < config.micro ? 0
       : sample * total < config.micro + config.glow ? 1 : 2
     const hue = drop.phase / (2 * Math.PI)
-    const palette = hue < .15 ? 0 : hue < .65 ? 1 : hue < .9 ? 2 : 3
+    const focusSeed = (Math.imul(drop.id, 0x27d4eb2d) >>> 0) / 4294967296
+    const focus = focusSeed < .65 ? 0 : focusSeed < .95 ? 1 : 2
+    const foregroundMix = drop.lensForeground ? drop.foregroundMix ?? 0 : 0
+    const palette = drop.lensForeground && focus > 0 ? (hue < .65 ? 1 : 2) : hue < .15 ? 0 : hue < .65 ? 1 : hue < .9 ? 2 : 3
     const profile = profiles[type]
-    const w = profile.width * (config.size / 1.3) * config.core * config.trail *
+    const scaleSeed = (Math.imul(drop.id, 0x165667b1) >>> 0) / 4294967296
+    const widthEmphasis = type === 1 && !drop.lensForeground && scaleSeed < .35
+      ? 1.2 + scaleSeed / .35 * .1 : 1
+    const w = widthEmphasis * profile.width * (config.size / 1.3) * config.core * config.trail *
       (params.core / .95) ** .55 * (.85 + drop.size * .18)
     const scale = Math.max(.18, params.trail)
     const originalHeight = profile.length * (.75 + drop.tail * .25) * scale
@@ -65,11 +71,18 @@ export function createDropletAppearance(ctx, config = appearance) {
     const progress = bounds ? (drop.y - bounds.y) / bounds.height : 0
     const onset = .16 + (hue - .5) * .06
     const phase = Math.max(0, Math.min(1, (progress - onset) / .58))
-    const softWeight = phase * phase * (3 - 2 * phase) * [.78, .96, .62][type]
+    const eased = phase * phase * (3 - 2 * phase)
+    const oldForegroundWeight = .92 + phase * .06
+    const mixedWeight = focus === 0 ? .85 + eased * .12
+      : focus === 1 ? .48 + eased * .35 : .3 + eased * .44
+    const softWeight = drop.lensForeground
+      ? oldForegroundWeight + (mixedWeight - oldForegroundWeight) * foregroundMix
+      : eased * [.78, .96, .62][type]
+    const sharpContrast = drop.lensForeground && focus > 0 ? 1 + foregroundMix * (focus === 1 ? 1.35 : 2.0) : 1
     ctx.setTransform(1, 0, drop.vx / drop.vy, 1, x, y)
     // Crossfade cached textures inside the original sprite footprint.
     // Both contributions retain the same dimensions and pass through the existing masks.
-    ctx.globalAlpha = opacity * (1 - softWeight)
+    ctx.globalAlpha = Math.min(1, opacity * (1 - softWeight) * sharpContrast)
     ctx.drawImage(sprite, 0, 0, sprite.width, split, -w / 2, frontY - tailHeight, w, tailHeight)
     ctx.drawImage(sprite, 0, split, sprite.width, sprite.height - split, -w / 2, frontY, w, frontHeight)
     if (softWeight > 0) {

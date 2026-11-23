@@ -1,6 +1,6 @@
 import { overlapsAt } from '../hand/occlusion.js'
 import { adaptiveContact } from './adaptive.js'
-import { stepDrops } from '../surface/physics.js'
+import { stepDrops, local, normal } from '../surface/physics.js'
 import { width, height } from './rain.js'
 
 const maxEffects = 160
@@ -13,16 +13,22 @@ export function createInteraction(insideFace, onImpact) {
   let bodyPatches = []
   let remainder = 0
   let serial = 0
+  let feedbackClock = 0
+  let feedbackRegions = []
+  const feedbackCounts = [0, 0, 0]
 
   function reset() {
     droplets = []
     impacts = []
+    feedbackRegions = []
     remainder = 0
   }
 
   function begin(next, dt) {
     if (frame?.key !== next.key) reset()
     frame = next
+    feedbackClock += dt
+    feedbackRegions = feedbackRegions.filter(region => feedbackClock - region.time < .4)
     bodyPatches = frame.patches.filter(candidate => !candidate.hand)
     impacts = impacts.filter(hit => (hit.life -= dt) > 0)
     remainder += dt
@@ -84,6 +90,33 @@ export function createInteraction(insideFace, onImpact) {
     if (!hit) return
     const visibleHit = !visible || handVisible(hit)
     onImpact?.(hit)
+    const contactPatch = frame.patches.find(p => p.id === hit.surface)
+    const n = contactPatch ? normal(contactPatch, local(contactPatch, hit)) : { x: 0, y: -1, z: 0 }
+    hit.normal = n
+    hit.visible = visibleHit
+    const seed = (Math.imul(drop.id, 0x9e3779b1) >>> 0) / 4294967296
+    const nearby = impacts.filter(p => p.life > .3 && Math.hypot(p.x-hit.x,p.y-hit.y) < 18).length
+    const headFeedback = hit.surface === 'head' || hit.surface === 'hair'
+    let level = headFeedback ? (seed < .75 ? 0 : seed < .95 ? 1 : 2) : 2
+    const nearbyFeedback = feedbackRegions.some(region =>
+      Math.hypot((region.x-hit.x)/sx,(region.y-hit.y)/sy) < 28)
+    if (headFeedback && (nearbyFeedback || impacts.filter(p => p.feedbackLevel > 0 && p.life > .29).length >= 6)) level = 0
+    if (headFeedback && level > 0) feedbackRegions.push({x:hit.x,y:hit.y,time:feedbackClock})
+    if (headFeedback) feedbackCounts[level]++
+    hit.feedbackLevel = level
+    hit.visualWeight = level === 0 ? 0 : (level === 1 ? .45 : 1) / (1 + nearby)
+    hit.sparks = Array.from({length: 2 + (drop.id % 2)}, (_, i) => {
+      const variation = (seed + i * .381966) % 1
+      const angle = Math.atan2(n.y, n.x) + (variation - .5) * 1.9
+      const sizeSeed = (Math.imul(drop.id + i * 173, 0x85ebca6b) >>> 0) / 4294967296
+      const durationSeed = (Math.imul(drop.id + i * 317, 0x165667b1) >>> 0) / 4294967296
+      const speed = 22 + (1-sizeSeed) * 32
+      return { vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed,
+        duration: .17 + durationSeed * .16, size: .45 + sizeSeed * .45 }
+    })
+    if (headFeedback) hit.sparks = hit.sparks.slice(0, level === 0 ? 0 : level === 1 ? 1 : 3).map(spark => ({
+      ...spark, vx: spark.vx * (level === 1 ? .6 : 1), vy: spark.vy * (level === 1 ? .6 : 1),
+    }))
     impacts.push(hit)
     if (impacts.length > 80) impacts.shift()
     if (!visibleHit) return false
@@ -92,6 +125,10 @@ export function createInteraction(insideFace, onImpact) {
     for (const child of result) {
       child.id ??= --serial
       child.rainSource = hit.surface
+      if (headFeedback && child.splash) {
+        child.suppressSplash = true
+        // Physics continues unchanged; selected optical sparks provide bounded feedback.
+      }
       if (hit.surface === 'head' && frame.adaptive) child.effectWeight = Math.max(.55, frame.adaptive.weights.crown)
       droplets.push(child)
     }
@@ -99,5 +136,5 @@ export function createInteraction(insideFace, onImpact) {
     return false
   }
 
-  return { begin, advance, reset, get droplets() { return droplets }, get impacts() { return impacts } }
+  return { begin, advance, reset, feedbackCounts, get droplets() { return droplets }, get impacts() { return impacts } }
 }

@@ -1,0 +1,3 @@
+import {test,expect} from '@playwright/test'
+import {writeFile} from 'node:fs/promises'
+test('fixed and stratified orientation comparisons',async({page})=>{await page.goto('/previews/butterfly-diversity.html');await expect(page.locator('#fixed')).toHaveJSProperty('width',1250);for(const id of ['fixed','before','after','compatible','live']){const url=await page.locator('#'+id).evaluate(c=>c.toDataURL());await writeFile(`reports/butterfly-diversity-${id}.png`,Buffer.from(url.split(',')[1],'base64'))}const data=await page.evaluate(async()=>{const m=await import('/src/firework/butterfly-diversity.js');return m.sampleDiverseButterflies()});await writeFile('reports/butterfly-diversity-data.json',JSON.stringify(data,null,2))})

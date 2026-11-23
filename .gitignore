@@ -6,3 +6,6 @@ test-results/
 reports/
 tests/fixtures/*.y4m
 tests/fixtures/manifest.json
+
+.DS_Store
+.vitest/
