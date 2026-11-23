@@ -13,5 +13,5 @@ export function createHeadCandidate(seed=1201){
 export function paintHeads(ctx,c,time,{tails=false}={}){
  if(tails)paintIndependentMotion(ctx,c.tail,time)
  ctx.save();ctx.globalCompositeOperation='lighter';let active=0
- for(const h of c.heads){const p=sampleHead(h,time);if(!p.visible)continue;h.particle.x=p.x;h.particle.y=p.y-2;h.particle.angle=Math.atan2(p.vy,p.vx);paintParticleBrush(ctx,{particles:[h.particle]},500,{color:h.color});active++}ctx.restore();return active
+ for(const h of c.heads){const p=sampleHead(h,time);if(!p.visible)continue;h.particle.x=p.x;h.particle.y=p.y-2;h.particle.angle=Math.atan2(p.vy,p.vx);const old=h.particle.brightness,size=h.particle.size;if(h.tipFragments){h.particle.brightness*=.35;h.particle.size*=.75}paintParticleBrush(ctx,{particles:[h.particle]},500,{color:h.color});h.particle.brightness=old;h.particle.size=size;active++}ctx.restore();return active
 }

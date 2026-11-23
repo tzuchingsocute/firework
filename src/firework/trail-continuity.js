@@ -3,7 +3,7 @@ const caches=new WeakMap()
 export const continuityConfig=Object.freeze({maxBirthGap:.05,maxSegmentDistance:48,maxPointsPerHead:256})
 function cache(c){let groups=caches.get(c);if(groups)return groups;groups=c.head.heads.map(h=>{const all=[];c.particles.forEach((p,i)=>{if(p.headId===h.id)all.push(i)});const stride=Math.max(1,Math.ceil(all.length/continuityConfig.maxPointsPerHead)),indices=all.filter((_,i)=>i%stride===0);return{headId:h.id,enabled:c.head.tail.peak.strokes[h.id].spec!=='fine',indices,xy:new Float64Array(indices.length*2),valid:new Uint8Array(indices.length),segments:new Float64Array(indices.length*14),count:0}});caches.set(c,groups);return groups}
 const spriteCoreWidths=[11,5,4.4]
-const coreWidth=p=>p.size*6*(spriteCoreWidths[p.shape]??5)/32
+const coreWidth=p=>p.size*(p.taperWidth??1)*6*(spriteCoreWidths[p.shape]??5)/32
 function point(a,b,c,d,t){const u=1-t;return u*u*u*a+3*u*u*t*b+3*u*t*t*c+t*t*t*d}
 function derivative(a,b,c,d,t){const u=1-t;return 3*u*u*(b-a)+6*u*t*(c-b)+3*t*t*(d-c)}
 function update(candidate,time,{allowed=null,headId=null}={}){const groups=cache(candidate);for(const group of groups){group.count=0;if(!group.enabled||headId!==null&&headId!==group.headId)continue;const {indices,xy,valid,segments}=group;for(let j=0;j<indices.length;j++){const p=candidate.particles[indices[j]],age=time-p.birth;valid[j]=age>=0&&age<p.life&&(!allowed||allowed.has(p))?1:0;if(valid[j]){const d=(1-Math.exp(-p.drag*age))/p.drag;xy[j*2]=p.x+p.vx*d;xy[j*2+1]=p.y+p.vy*d+.5*p.gravity*age*age}}
@@ -13,5 +13,5 @@ function update(candidate,time,{allowed=null,headId=null}={}){const groups=cache
  }return groups}
 // Diagnostic snapshots only; the live painter below reuses typed arrays without per-segment objects.
 export function continuitySegments(c,time,options={}){const result=[];for(const g of update(c,time,options))for(let i=0;i<g.count;i++){const o=i*14,b=g.segments;result.push({headId:g.headId,a:b[o],b:b[o+1],distance:b[o+2],width:b[o+3],alpha:b[o+4],curve:Array.from({length:4},(_,j)=>({x:b[o+6+j*2],y:b[o+7+j*2]}))})}return result}
-export function paintTrailConnections(ctx,c,time,options={}){let count=0;ctx.save();ctx.strokeStyle='#fbf6e8';ctx.lineCap='round';ctx.lineJoin='round';for(const g of update(c,time,options))for(let i=0;i<g.count;i++){const o=i*14,b=g.segments;ctx.globalAlpha=b[o+4];ctx.lineWidth=b[o+3];ctx.beginPath();ctx.moveTo(b[o+6],b[o+7]);ctx.bezierCurveTo(b[o+8],b[o+9],b[o+10],b[o+11],b[o+12],b[o+13]);ctx.stroke();count++}ctx.restore();return count}
+export function paintTrailConnections(ctx,c,time,options={}){let count=0;ctx.save();ctx.strokeStyle='#fbf6e8';ctx.lineCap='round';ctx.lineJoin='round';for(const g of update(c,time,options))for(let i=0;i<g.count;i++){const o=i*14,b=g.segments;ctx.globalAlpha=b[o+4]*(c.head.heads[g.headId].finalTipFamily?.18:c.head.heads[g.headId].tipFragments&&time-c.particles[b[o+1]].birth<.22?.18:1);ctx.lineWidth=b[o+3];ctx.beginPath();ctx.moveTo(b[o+6],b[o+7]);ctx.bezierCurveTo(b[o+8],b[o+9],b[o+10],b[o+11],b[o+12],b[o+13]);ctx.stroke();count++}ctx.restore();return count}
 export function clearTrailContinuity(c){caches.delete(c)}

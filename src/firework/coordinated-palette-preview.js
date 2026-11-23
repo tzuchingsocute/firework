@@ -1,0 +1,24 @@
+import{withColorRoles,colorRole}from'./color-roles-preview.js'
+// Preview-only coordinated families. Every choice is resolved at creation/user palette change.
+import{registerPaletteSprite}from'./firework-color-preview.js'
+function hsl(h,s,l){s/=100;l/=100;const a=s*Math.min(l,1-l),f=n=>{const k=(n+h/30)%12;return Math.round(255*(l-a*Math.max(-1,Math.min(k-3,9-k,1))))};return[f(0),f(8),f(4)]}
+const hex=rgb=>'#'+rgb.map(v=>v.toString(16).padStart(2,'0')).join('')
+export const coordinatedPalettes=Object.freeze([
+ {id:'pink-purple',name:'粉紫',hue:326,range:[268,345],stops:[[326,80,70],[278,78,68],[338,84,65],[300,72,78],[320,65,85]]},
+ {id:'warm-gold',name:'暖金橙',hue:45,range:[20,61],stops:[[45,88,68],[34,90,64],[55,82,77],[25,87,61],[48,75,85]]},
+ {id:'blue-cyan',name:'蓝青',hue:205,range:[180,222],stops:[[205,84,69],[187,80,66],[216,83,64],[196,76,78],[200,65,86]]}
+].map(p=>{const tones=p.stops.flatMap(([h,s,l],base)=>[-1,0,1].map(variant=>{const body=hsl(h+variant*3,s+variant*2,l+variant*2);return Object.freeze({key:`${base}:${variant}`,base,body,edge:hsl(h+variant*3,72,79),highlight:hsl(h,66,90),hex:hex(body)})}));return withColorRoles({...p,body:tones[1].body,edge:tones[1].edge,highlight:tones[1].highlight,tones:Object.freeze(tones),toneLookup:new Map(tones.map(t=>[t.hex,t]))})}))
+export function chooseCoordinatedPalette(seed){let n=Math.imul(seed^0x6c011,0x45d9f3b);return coordinatedPalettes[((n^(n>>>16))>>>0)%3]}
+const monos=new WeakMap();export function monochromePalette(p){if(!monos.has(p))monos.set(p,Object.freeze({id:p.id+'-mono',name:p.name+'单色',hue:p.hue,body:p.body,edge:p.edge,highlight:p.highlight}));return monos.get(p)}
+function hash(seed,id){let n=Math.imul(seed^id,0x85ebca6b);return((n^(n>>>16))>>>0)/4294967296}
+function pick(q){return q<.38?0:q<.70?1:q<.84?2:q<.95?3:4}
+function variant(q){return q<.2?0:q<.8?1:2}
+const decorated=new WeakSet();function spriteColors(map,resolve){if(!decorated.has(map)){const set=map.set.bind(map);map.set=(id,value)=>{registerPaletteSprite(value.canvas,resolve(id));return set(id,value)};decorated.add(map)}for(const[id,s]of map)registerPaletteSprite(s.canvas,resolve(id))}
+export function assignCoordinatedColors(instance,palette,seed){const live=instance.special?instance.live:instance,body=live.state.candidate.body,tr=body.base.trail,heads=tr.head.heads,bases=heads.map(h=>pick(hash(seed,h.id+71))),tone=(head,id,allowCompanion=false)=>{let base=bases[head]??0;if(allowCompanion&&hash(seed,id+919)<.25)base=pick(hash(seed,id+271));return palette.tones[base*3+variant(hash(seed,id+1337))].hex};const assign=(p,base,role)=>{p.colorRole=role;p.color=palette.roleTokens[base][role]},role=(head,id)=>colorRole(seed,id,{fine:tr.head.tail.peak.strokes[head]?.spec==='fine',whiteStream:hash(seed,head+831)<.35});for(const h of heads)assign(h,palette.tones[bases[h.id]*3+1].hex,tr.head.tail.peak.strokes[h.id].spec==='fine'&&hash(seed,h.id+831)<.35?'highlight':'color')
+ tr.particles.forEach((p,i)=>assign(p,tone(p.headId,i),role(p.headId,i)));tr.batches=[...new Set(tr.particles.map(p=>p.color))].map(color=>({color,particles:[]}));tr.previewColorBatchLookup=new Map(tr.batches.map(b=>[b.color,b]));body.particles.forEach((p,i)=>assign(p,tone(p.eventId,i+10001,true),p.type==='ordinary'?colorRole(seed,i+10001):'color'))
+ if(live.core){const core=live.core,colors=[palette.tones[13].hex,palette.tones[1].hex,palette.tones[4].hex];core.particles.forEach((p,i)=>p.color=colors[i%3]);core.batches=colors.map(color=>({color,particles:[]}))}
+ const resolve=id=>{const[type,index]=id.split(':');return type==='tip'?heads[+index]?.color:body.particles[+index]?.color};spriteColors(live.sprites,resolve);spriteColors(live.state.sprites,resolve)
+ if(instance.special)for(const s of instance.special){s.trails.forEach((p,i)=>assign(p,tone(s.head.id,i+21001),role(s.head.id,i+21001)));s.particleBody.marks.forEach((m,i)=>assign(m.p,tone(s.head.id,i+31001),role(s.head.id,i+31001)));s.children.forEach((p,i)=>assign(p,tone(s.head.id,i+41001,true),p.type==='ordinary'?colorRole(seed,i+41001):'color'));s.tipCluster.items.forEach((p,i)=>p.previewColor=palette.roleTokens[tone(s.head.id,i+51001,true)].color)}
+ if(instance.chain)for(const plan of instance.chain.plans){const sourceTone=palette.toneLookup.get(plan.p.color);plan.children.forEach((p,i)=>assign(p,palette.tones[(sourceTone?.base??0)*3+variant(hash(seed,i+plan.id*19+61001))].hex,p.type==='ordinary'?colorRole(seed,i+plan.id*19+61001):'color'))}
+ const stops=body.base.trigger.lifecycle.headStops,visible=tr.particles.filter(p=>p.birth<Math.min(tr.head.heads[p.headId].birth+tr.head.heads[p.headId].duration,stops.get(p.headId)??Infinity));if(instance.special)for(const s of instance.special)visible.push(...s.particleBody.marks.map(m=>m.p));const roleCounts=visible.reduce((a,p)=>(a[p.colorRole]=(a[p.colorRole]??0)+1,a),{});return{headColors:heads.map(h=>h.color),bases,roleCounts}
+}

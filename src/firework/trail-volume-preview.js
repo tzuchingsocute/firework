@@ -1,0 +1,7 @@
+// Render-only, installed only on independent main-firework preview instances.
+import{sampleHead}from'./head-candidate.js'
+export const previewTrailWidths=Object.freeze({fine:1,standard:1.15,bold:1.25})
+export function configureMainTrailVolume(live,special){const tr=live.state.candidate.body.base.trail,data=new Float64Array(tr.particles.length*4);for(let i=0;i<tr.particles.length;i++){const p=tr.particles[i],spec=tr.head.tail.peak.strokes[p.headId].spec,factor=previewTrailWidths[spec]??1;if(factor===1)continue;const h=sampleHead(tr.head.heads[p.headId],p.birth),a=Math.atan2(h.vy,h.vx),nx=-Math.sin(a),ny=Math.cos(a),o=i*4;data[o]=nx;data[o+1]=ny;data[o+2]=(p.x-h.x)*nx+(p.y-h.y)*ny;data[o+3]=factor-1}tr.previewLateral={enabled:false,data}
+ for(const s of special){const model=s.particleBody,factor=previewTrailWidths[tr.head.tail.peak.strokes[s.head.id].spec]??1,offsets=new Float64Array(model.marks.length*2);model.marks.forEach((m,i)=>{const h=sampleHead(s.head,m.p.birth),a=Math.atan2(h.vy,h.vx),nx=-Math.sin(a),ny=Math.cos(a),side=((m.x-h.x)*nx+(m.y-h.y)*ny)*(factor-1);offsets[i*2]=nx*side;offsets[i*2+1]=ny*side});model.previewVolumeOffsets=offsets;model.previewVolumeEnabled=false}
+}
+export function clearMainTrailVolume(live,special){live.state.candidate.body.base.trail.previewLateral=null;for(const s of special){s.particleBody.previewVolumeOffsets=null;s.particleBody.previewVolumeEnabled=false}}

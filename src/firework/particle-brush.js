@@ -79,9 +79,10 @@ function atlas(color){
   ctx.closePath();ctx.fill();return c
  });brushes.set(color,variants);return variants
 }
-export function paintParticleBrush(ctx,brush,age,{type='all',color='#e5cfa4',linkedOnly=false,streamLinked=false}={}){
+export function paintParticleBrush(ctx,brush,age,{type='all',color='#e5cfa4',linkedOnly=false,streamLinked=false,skipTipFragments=false}={}){
  const time=age/1000,sprites=atlas(color);let active=0
  for(const p of brush.particles){
+  if(skipTipFragments&&(p.tipFragment||p.finalFragment))continue
   if(type!=='all'&&p.type!==type)continue
   if(linkedOnly&&!p.linked)continue
   if(streamLinked&&p.type!=='stream'&&!p.linked)continue
