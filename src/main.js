@@ -1,4 +1,4 @@
-import { mountFirework } from './firework/controller.js'
+import { mountFirework } from './firework/sprite-controller.js'
 import { mountVisualRain } from './rain/visual.js'
 import { createExpressionPanel, expressions } from './expression/panel.js'
 import { createFramingGuide } from './framing.js'
@@ -112,7 +112,7 @@ function track(session) {
         if (surface.active || framing.reframing) collision.reset()
         else collision.update(points, started, framing.frame)
         surface.update(points)
-        firework.updateFace(points)
+        firework.updateFace?.(points)
         const faceLabel = points ? '已检测到' : '未检测到'
         const trackingLabel = points ? '追踪中' : '正在寻找人脸'
         if (face.textContent !== faceLabel) face.textContent = faceLabel
