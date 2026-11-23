@@ -3,6 +3,18 @@ import { videoGeometry } from '../projection.js'
 
 export function faceOpacity(face, from, to) {
   if (!face?.points.length) return 1
+  let left = Infinity, right = -Infinity, top = Infinity, bottom = -Infinity
+  for (const point of face.points) {
+    left = Math.min(left, point.x)
+    right = Math.max(right, point.x)
+    top = Math.min(top, point.y)
+    bottom = Math.max(bottom, point.y)
+  }
+  // Only skip trajectories beyond the entire fade region. Nearby sweeps retain
+  // the original sampling and distance calculation, including fast crossings.
+  const padding = Math.max(0, face.margin + 12)
+  if (Math.max(from.x, to.x) < left - padding || Math.min(from.x, to.x) > right + padding ||
+      Math.max(from.y, to.y) < top - padding || Math.min(from.y, to.y) > bottom + padding) return 1
   let distance = Infinity
   // Subsample the swept segment so a slow frame cannot skip the protected core.
   const steps = Math.max(1, Math.ceil(Math.hypot(to.x - from.x, to.y - from.y) / 6))

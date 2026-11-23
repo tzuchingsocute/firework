@@ -26,11 +26,12 @@ export function mountFirework(expressions) {
  canvas.style.cssText='position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:4'
  canvas.setAttribute('aria-hidden','true');canvas.dataset.renderer='live-particles';canvas.dataset.visualVersion='final-confirmed';room.querySelector('.live-stage').append(canvas)
  const ctx=canvas.getContext('2d');let active=[], count=0, raf, disposed=false
+ let needsClear = true
  const paletteOffset = Math.floor(Math.random()*4)
  const live = now => active.filter(item=>now-item.start<item.particles.duration)
  const prune = now => {for(const item of active)if(now-item.start>=item.particles.duration)disposeFinalLiveFirework(item.particles);active=live(now)}
  let faceLandmarks=null,faceTime=-Infinity
- const context=()=>{const bounds=visibleVideoRect(video,room,414,896);let face=null;if(faceLandmarks&&performance.now()-faceTime<750){const vr=video.getBoundingClientRect(),rr=room.getBoundingClientRect();if(vr.width&&rr.width){const points=projectPoints(faceLandmarks,vr.width,vr.height,video.videoWidth||vr.width,video.videoHeight||vr.height,videoFit(video)),xs=points.map(p=>(vr.x-rr.x+p.x)*414/rr.width),ys=points.map(p=>(vr.y-rr.y+p.y)*896/rr.height);face={x:(Math.min(...xs)+Math.max(...xs))/2,y:(Math.min(...ys)+Math.max(...ys))/2,width:Math.max(...xs)-Math.min(...xs),height:Math.max(...ys)-Math.min(...ys)}}}return{bounds,face,seed:count+paletteOffset}}
+ const context=(rr=room.getBoundingClientRect(),vr=video.getBoundingClientRect())=>{const bounds=visibleVideoRect(video,room,414,896,rr,vr);let face=null;if(faceLandmarks&&performance.now()-faceTime<750){if(vr.width&&rr.width){const points=projectPoints(faceLandmarks,vr.width,vr.height,video.videoWidth||vr.width,video.videoHeight||vr.height,videoFit(video)),xs=points.map(p=>(vr.x-rr.x+p.x)*414/rr.width),ys=points.map(p=>(vr.y-rr.y+p.y)*896/rr.height);face={x:(Math.min(...xs)+Math.max(...xs))/2,y:(Math.min(...ys)+Math.max(...ys))/2,width:Math.max(...xs)-Math.min(...xs),height:Math.max(...ys)-Math.min(...ys)}}}return{bounds,face,seed:count+paletteOffset}}
  const load=()=>{let particles=0,peakMains=0,reservedParticles=0;const now=performance.now();for(const item of active){const age=(now-item.start)/1000,c=item.particles.census(age);reservedParticles+=c.reservedParticles;particles+=c.particles;if(item.role==='main'&&age<.95)peakMains++}return{instances:live(now).length,particles,peakMains,reservedParticles}}
  const minimumCosts=new Map()
  const scheduler=createGroupScheduler({load,spawn(item,now){if(disposed)return false;const available=scheduler.config.particleBudget-load().reservedParticles,key=item.role+':'+item.seed;if((minimumCosts.get(key)||0)>available)return false;const particles=createFinalLiveFirework(item.seed,{role:item.role,available});if(!particles.accepted){minimumCosts.set(key,particles.minimumReservation);if(minimumCosts.size>128)minimumCosts.delete(minimumCosts.keys().next().value);return false}minimumCosts.delete(key);active.push({...item,particles,start:now});return true}})
@@ -51,9 +52,15 @@ export function mountFirework(expressions) {
   if(disposed)return
   prune(now)
   const enabled=!document.hidden && Boolean(video.srcObject?.getVideoTracks().some(track=>track.readyState==='live'))
-  const before=scheduler.stats.groups;scheduler.step(expressions.snapshot,now,context(),enabled);if(scheduler.stats.groups>before){count++;canvas.dataset.triggerCount=String(scheduler.stats.groups);canvas.dataset.source='laugh';canvas.dataset.groupHistory=JSON.stringify(scheduler.stats.history)}
-  const dpr=window.devicePixelRatio||1,frame=room.getBoundingClientRect(),w=Math.max(1,Math.round(frame.width*dpr)),h=Math.max(1,Math.round(frame.height*dpr));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}ctx.setTransform(canvas.width/414,0,0,canvas.height/896,0,0);ctx.clearRect(0,0,414,896)
-  for(const item of active) paintFinalLiveFirework(ctx,item.particles,now-item.start,item.position,visibleVideoRect(video,room,414,896),item.scale)
+  const frame=room.getBoundingClientRect(),videoFrame=video.getBoundingClientRect(),scene=context(frame,videoFrame)
+  const before=scheduler.stats.groups;scheduler.step(expressions.snapshot,now,scene,enabled);if(scheduler.stats.groups>before){count++;canvas.dataset.triggerCount=String(scheduler.stats.groups);canvas.dataset.source='laugh';canvas.dataset.groupHistory=JSON.stringify(scheduler.stats.history)}
+  const dpr=window.devicePixelRatio||1,w=Math.max(1,Math.round(frame.width*dpr)),h=Math.max(1,Math.round(frame.height*dpr));if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h}
+  if(active.length || needsClear){
+   ctx.setTransform(canvas.width/414,0,0,canvas.height/896,0,0)
+   ctx.clearRect(0,0,414,896)
+   for(const item of active) paintFinalLiveFirework(ctx,item.particles,now-item.start,item.position,scene.bounds,item.scale)
+   needsClear=active.length>0
+  }
   canvas.dataset.activeCount=String(active.length);canvas.dataset.groupCount=String(scheduler.stats.groups);canvas.dataset.pendingCount=String(scheduler.pendingCount);const census=load();canvas.dataset.peakMains=String(census.peakMains);canvas.dataset.activeParticles=String(census.particles);canvas.dataset.reservedParticles=String(census.reservedParticles);canvas.dataset.skippedSupports=String(scheduler.stats.skippedSupports)
   raf=requestAnimationFrame(tick)
  }

@@ -21,9 +21,8 @@ export function projectPoints(points, width, height, videoWidth, videoHeight, mo
 
 export const videoFit = video => video.dataset?.fit || 'contain'
 
-export function visibleVideoRect(video, room, designWidth, designHeight) {
-  const frame = room.getBoundingClientRect()
-  const window = video.getBoundingClientRect()
+export function visibleVideoRect(video, room, designWidth, designHeight,
+  frame = room.getBoundingClientRect(), window = video.getBoundingClientRect()) {
   if (!frame.width || !frame.height || !window.width || !window.height) {
     return { x: 0, y: 0, width: 0, height: 0 }
   }
