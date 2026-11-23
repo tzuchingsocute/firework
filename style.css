@@ -179,3 +179,32 @@ body {
   height: 100%;
   pointer-events: none;
 }
+
+html[data-view="public"] .controls { display: none; }
+html[data-view="public"] .workbench {
+  width: min(100%, 414px);
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.viewer-controls {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 0 16px 16px;
+  text-align: center;
+}
+.viewer-controls button {
+  border: 0;
+  border-radius: 999px;
+  padding: 10px 24px;
+  background: #acf3ef;
+  color: #142626;
+  font: inherit;
+  cursor: pointer;
+}
+.viewer-controls button:disabled { opacity: .6; cursor: wait; }
+.viewer-controls p { margin: 0; }
+
+html[data-view="public"] .live-room {
+  width: min(100%, 414px, calc((100dvh - 88px) * 414 / 896));
+}

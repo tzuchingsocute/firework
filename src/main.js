@@ -202,3 +202,12 @@ controlsToggle.addEventListener('click', () => {
 
 const firework = mountFirework(expressions)
 mountVisualRain(surface, expressions, firework)
+
+
+if (import.meta.env.MODE === 'pages') {
+  const viewerControls = document.createElement('section')
+  viewerControls.className = 'viewer-controls'
+  viewerControls.setAttribute('aria-label', '摄像头控制')
+  viewerControls.append(toggle, message, document.querySelector('#framing-guide'))
+  document.querySelector('.workbench').append(viewerControls)
+}

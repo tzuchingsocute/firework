@@ -1,8 +1,13 @@
 import { defineConfig } from 'vite'
 import { build } from 'esbuild'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   plugins: [{
+    name: 'page-presentation',
+    transformIndexHtml(html) {
+      return html.replace('%APP_VIEW%', mode === 'pages' ? 'public' : 'debug')
+    },
+  }, {
     name: 'surface-worker-development',
     configureServer(server) {
       for (const [route, entry] of [['/surface-worker.js', 'src/surface/perception.worker.js'],
@@ -21,4 +26,4 @@ export default defineConfig({
       })
     },
   }],
-})
+}))
